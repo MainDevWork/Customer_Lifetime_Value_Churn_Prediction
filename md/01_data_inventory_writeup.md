@@ -1,4 +1,4 @@
-# Stage One — Data Inventory and Reliability Assessment
+# Stage One: Data Inventory and Reliability Assessment
 
 **Notebook:** `01_data_inventory.ipynb`
 
@@ -6,112 +6,107 @@
 
 ## Project overview
 
-Telecommunications providers lose customers to competitors on a continuous basis. The industry term for this is **churn**. It represents a significant commercial cost, as acquiring a new customer is considerably more expensive than retaining an existing one.
+Telecommunications providers lose customers to competitors on a continuous basis. The industry term for this is **churn**. It costs the business a great deal, because winning a new customer is far more expensive than keeping one it already has.
 
-The standard response is to predict which customers are most likely to leave, and to contact those customers with a retention offer.
+The usual response is to predict which customers are most likely to leave, and to contact them with a retention offer.
 
-This project undertakes that prediction, and then addresses a second question which most churn projects omit: **whether a given customer is worth the cost of retaining them.** For a substantial proportion of the customer base, the answer is no. The cost of contacting them exceeds the value they represent, and retaining them therefore destroys value rather than creating it.
+This project makes that prediction, and then asks a further question: **whether a customer is worth the cost of keeping.** For a large share of the customer base, the answer is no. Contacting them costs more than they are worth, so keeping them destroys value rather than creating it.
 
-The project consists of two components:
+The project has two parts:
 
-1. **A predictive model** estimating the likelihood that each customer will leave.
-2. **A customer value calculation**, used to determine which customers justify the cost of intervention.
+1. **A model**: estimating how likely each customer is to leave.
+2. **A customer value calculation**: working out the lifetime value of the customers who are worth the cost of contacting.
 
-The work is delivered in four stages, each documented separately:
+The work is delivered in **four stages**:
 
-| Stage | Purpose |
-|---|---|
-| **One (this document)** | Assess the contents and reliability of the source data |
-| Two | Construct the database, derive the required measures, and calculate customer value |
-| Three | Build, test and select the predictive model |
-| Four | Determine which customers justify intervention, and quantify the commercial return |
+| Stage                         | Purpose                                                                        |
+| ----------------------------- | ------------------------------------------------------------------------------ |
+| **One (this document)** | Check what the source data holds and whether it can be trusted                 |
+| Two                           | Build the database, work out the measures needed, and calculate customer value |
+| Three                         | Build, test and choose the model                                               |
+| Four                          | Decide which customers are worth contacting, and put a figure on the return    |
 
-**This document is written to be read independently of the underlying code.** All work undertaken and all findings reached are set out in full below.
+Each stage has a write-up of its own, and this is the first. **The four documents form one continuous account of the project.** All the work done and all the findings are set out in the documents themselves.
 
 ---
 
 ## The dataset
 
-The project uses a publicly available dataset published by IBM, describing the customer base of a telecommunications provider in California. It contains **7,043 customers**, with **33 items of information recorded for each**.
+The project uses a publicly available dataset published by IBM, describing the customer base of a telecommunications provider in California. It contains **7,043 customers**, with **33 fields of information recorded for each**.
 
 Those items fall into five categories:
 
-- **Customer characteristics** — gender, senior citizen status, whether the customer has a partner or dependants
-- **Location** — city, postal code, geographic coordinates
-- **Products held** — telephone line, internet service type, and six optional additional services including online security and streaming television
-- **Financial information** — monthly charge, total amount paid to date, contract type, payment method
-- **Outcome** — whether the customer has left, and if so, the reason recorded
-
-Two further figures are supplied with the dataset, and both are material to this stage:
-
-- **A churn score** — IBM's own estimate of each customer's likelihood of leaving
-- **A customer lifetime value figure** — an estimate of the total worth of each customer to the business across the relationship
+- **Customer characteristics**: gender, senior citizen status, whether the customer has a partner or dependants
+- **Location**: city, postal code, geographic coordinates
+- **Products held**: telephone line, internet service type, and six optional additional services including online security and streaming television
+- **Financial information**: monthly charge, total amount paid to date, contract type, payment method
+- **Outcome**: whether the customer has left, and if so, the reason recorded
 
 ---
 
 ## Rationale for this stage
 
-The two supplied figures identified above are the principal reason this assessment was undertaken.
+Two further figures were also provided with the dataset:
 
-Both appear authoritative, and both arrive already calculated, which represents a considerable saving in effort. The immediate temptation is to adopt them and proceed to the modelling work.
+- **A churn score**: IBM's own estimate of each customer's likelihood of leaving
+- **A customer lifetime value figure**: an estimate of the total worth of each customer to the business across the relationship
 
-That course of action carries a specific risk. Where a supplied figure is unsound, all subsequent work built upon it is also unsound — and the defect remains concealed, because the figure carries an appearance of authority and is therefore not questioned. Such problems typically surface only at the point where a result must be explained or defended.
+Both figures arrived already calculated, which appears to save effort. The temptation is to accept them and move straight to the modelling work. That carries a risk. If either figure is wrong, everything built on it is wrong as well, and the fault stays hidden inside a calculation that somebody else has already made. A figure that ***looks*** official is rarely questioned. The problem only comes to light when a result has to be explained or defended.
 
 Three assessments were therefore carried out before any development work began:
 
-1. **A structural review** — the number of records, the fields present, and the manner in which each field is stored
-2. **An assessment of missing values** — where data is absent, and whether the absence can be accounted for
-3. **A reliability test of the supplied figures** — whether they measure what they purport to measure
+1. **A structural review**: the number of records, the fields present, and how each field is stored
+2. **A check on missing values**: where data is blank, and whether the blank can be explained
+3. **A reliability test of the supplied figures**: whether they measure what they claim to measure
 
-The third assessment produced the most significant finding of this stage. **Both supplied figures were tested, and both were rejected.** The grounds for rejection are set out below.
+The third check produced the most important finding of this stage. **Both supplied figures were tested, and both were rejected.** The reasons are set out below.
 
-**A note on scope.** No data is altered at this stage. This notebook examines and records only. All corrections are applied at Stage Two, implemented in SQL, where they remain visible and open to inspection.
+**A note on scope.** No data is altered at this stage. This notebook examines and records only. All corrections are applied at Stage Two, implemented in SQL.
 
 ---
 
 ## 1. Structural review
 
-The dataset was retrieved programmatically by the notebook rather than downloaded manually. This ensures that any party running the project obtains identical data from an identical source, with no dependency on a file held locally on an individual machine. Work which cannot be reproduced cannot be verified.
+The notebook fetches the dataset straight from its published source each time it runs, rather than relying on a copy downloaded by hand. This means the data is always the same as the source, with no separate copy to keep up to date. It also means anyone can run the work again and check it.
 
-The complete version of the dataset was used in preference to the abridged version which circulates more widely. The abridged version omits the customer lifetime value figure, the recorded reason for departure, and the geographic detail, all of which are required by this project.
+The complete version of the dataset was used instead of the shortened version which circulates more widely. The shortened version removes the customer lifetime value figure, the recorded reason for departure, and the geographic detail. Not every one of these fields is used in the analysis that follows, but each of them was needed for this project.
 
-**Finding: 7,043 records across 33 fields, consistent with expectations.**
+7,043 records across 33 fields were found in the dataset, which is consistent with what was expected. The full list of field names was checked before any further work was done on the data. If fields were absent, that needed to be known early, rather than discovered after substantial work had been completed.
 
-The full list of field names was printed before any further work was undertaken. This project depends upon the presence of specific fields; had any been absent, that needed to be established immediately rather than discovered after substantial work had been completed.
-
-The first ten records were also displayed in order to establish the format of the values and identify any obvious irregularities.
+The first ten records were also displayed, to see the format of the values and pick up anything obviously wrong.
 
 ---
 
 ## 2. Assessment of missing values
 
-All fields were examined for missing values. **Only one field contains any: the recorded reason for departure, which is absent for 5,174 customers.**
+All fields were examined for missing values. **Only one field contains any: the recorded
+<u>reason for departure</u>, which is absent for 5,174 customers.**
 
-On initial inspection this represents a substantial gap, affecting nearly three quarters of the dataset. Examination of the figures establishes that it is not.
+At first, this looked like there was a serious gap in the data, affecting nearly three quarters of the dataset in one field, but a closer look showed that it is not.
 
-The dataset contains 7,043 customers. Of these, **1,869 have departed**. This leaves **5,174 customers still with the business** — precisely the number of absent values.
+The reason for departure is recorded for **1,869 customers** and empty for the remaining **5,174**. Those 1,869 are exactly the customers who have left the business. The 5,174 are the customers who are still with it.
 
 The field is therefore populated only where a customer has actually departed. Where a customer remains with the business, no reason exists to be recorded. **The field is not incomplete; it is correctly empty.**
 
-**No values were substituted, and the reasoning is material.**
+**No values were substituted, and the reasoning matters.**
 
-Standard practice in much data preparation is to populate missing values automatically, typically with an average or a placeholder value, before establishing the cause of the absence. Applying that approach here would have fabricated a reason for departure for 5,174 customers who have not departed. All subsequent analysis involving that field would then have rested on invented data.
+A common habit in data preparation is to fill missing values automatically, usually with an average or a stand-in value, before finding out why they are missing. Doing that here would have invented a reason for departure for 5,174 customers who have not departed. Every later analysis using that field would then have rested on made-up data.
 
-The principle demonstrated is that the cause of a gap should be established before any decision is taken regarding whether to fill it. In the majority of cases, understanding the cause establishes that the gap should be left as it is.
+The lesson is that the cause of a gap should be understood before deciding whether to fill it. In most cases, understanding the cause shows that the gap should be left alone.
 
 ---
 
 ## 3. Review of field types
 
-Each field is stored in a defined format — as a number, a date, or as text. A field containing monetary amounts should be stored as a number, so that it can be aggregated and averaged.
+Each field is stored in a set format, as a number, a date, or as text. A field holding amounts of money should be stored as a number, so that it can be added up and averaged.
 
 One field failed this requirement. **Monthly charges is stored as a number, whereas total charges is stored as text.** Both contain monetary amounts and both should therefore be numeric.
 
-The cause of this behaviour is specific. Where a single entry within a column cannot be interpreted as a number, the entire column is treated as text. One unreadable value among 7,043 records is therefore sufficient to render the whole field unusable for calculation.
+There is a specific reason for this. If even one entry in a column cannot be read as a number, the entire column is treated as text. One unreadable value among 7,043 records is therefore enough to make the whole field unusable for calculation.
 
-The expedient response would have been to convert the column in a single operation, discarding any values which failed. This was not done. Converting first and investigating afterwards destroys the evidence required to establish the underlying cause.
+The quick response would have been to convert the whole column in one go and throw away any values that failed. This was not done. Converting first and investigating afterwards destroys the evidence needed to find the cause.
 
-Each value was instead tested individually, and those which failed were isolated and examined.
+Each value was tested on its own instead, and those that failed were set aside and examined.
 
 **Finding: eleven records are affected, and all eleven share an identical profile:**
 
@@ -119,122 +114,122 @@ Each value was instead tested individually, and those which failed were isolated
 - A monthly charge on record
 - **Active customer status**
 
-The explanation follows directly. These are newly acquired customers who have agreed a price but have not yet been billed for a full cycle. No total charge exists because no charge has yet been raised.
+The explanation is simple. These are new customers who have agreed a price but have not yet been billed for a full month. No total charge exists because no charge has been raised yet.
 
-**The blank value is therefore accurate rather than corrupt.** It records a genuine circumstance.
+**The blank value is therefore correct rather than broken.** It records something that is genuinely true.
 
-**Decision: substitute zero, and retain all eleven records.**
+**Decision: put zero in, and keep all eleven records.**
 
-Zero is the correct figure, as these customers have genuinely paid nothing to date. Deleting the eleven records would have been the faster course, and is what commonly occurs in practice. It would also have removed the entire population of newly acquired customers from the analysis.
+Zero is the right figure, as these customers really have paid nothing so far. Deleting the eleven records would have been quicker, and is what usually happens in practice. It would also have removed every single new customer from the analysis.
 
-The consequence is greater than it first appears. As Stage Two establishes, newly acquired customers constitute the population most likely to depart. Their removal would have introduced a systematic bias into the analysis before the substantive work had commenced.
+That matters more than it first appears. As Stage Two shows, new customers are the group most likely to leave. Removing them would have tilted the whole analysis before the real work had even started.
 
 ---
 
 ## 4. Reliability testing of the supplied customer lifetime value figure
 
-Following the correction of field types, summary statistics were produced for each numeric field, comprising the minimum value, maximum value, average and distribution.
+Once the field types were corrected, summary figures were produced for each numeric field, covering the lowest value, the highest value, the average and the spread.
 
-This produced the most significant finding of the stage.
+This produced the most important finding of the stage.
 
-**The supplied customer lifetime value figure has a minimum of 2,003 and a maximum of 6,500. Total charges — representing revenue already collected from customers — reaches 8,684.**
+**The supplied customer lifetime value figure has a minimum of 2,003 and a maximum of 6,500. Total charges, representing revenue already collected from customers, reaches 8,684.**
 
-This combination is not possible. Customer lifetime value represents the total worth of a customer to the business across the entire relationship. It cannot be lower than revenue the business has already received from that customer. A figure recording a maximum worth of 6,500 for a customer who has already paid 8,684 is not denominated in currency.
+This cannot be right. Customer lifetime value is the total worth of a customer to the business across the whole relationship. It cannot be lower than money the business has already taken from that customer. A figure that caps a customer's worth at 6,500 when they have already paid 8,684 is not a figure measured in money.
 
-The boundaries provide a second indication. No customer scores below 2,003, and none above 6,500. Genuine customer value does not exhibit this pattern. Any real customer base contains customers of negligible value and customers of exceptional value.
+The upper and lower limits give a second warning sign. No customer scores below 2,003, and none above 6,500. Real customer value does not behave like that. Any real customer base has customers who are worth almost nothing and customers who are worth a great deal.
 
-Two independent indications of unreliability were considered sufficient to warrant a formal test rather than a judgement.
+With two warning signs, the figure was put to a proper test rather than judged by eye.
 
 ### The basis of the test
 
-Irrespective of the formula applied, customer lifetime value is determined by two variables: **the amount a customer pays per period**, and **the duration of the relationship**. Any legitimate lifetime value figure must therefore vary in accordance with both. A long-standing customer paying a high monthly charge must be ranked above a recently acquired customer paying a low one.
+Whatever formula is used, customer lifetime value is driven by two things: **the amount a customer pays each period**, and **how long the relationship lasts**. Any sound lifetime value figure must therefore move with both. A long-standing customer paying a high monthly charge must rank above a new customer paying a low one.
 
-This provides a testable proposition: **does the supplied figure rank customers in the same order as its own constituent variables?**
+That gives something that can be tested: **does the supplied figure rank customers in the same order as the things it is built from?**
 
 ### Method
 
-The test applied **rank correlation**, a measure of whether two variables order a set of items in the same sequence. It disregards scale entirely.
+The test used **rank correlation**, which measures whether two things put a set of items in the same order. It ignores scale completely.
 
-Disregarding scale was the intention. The figure was already suspected of being expressed on an arbitrary scale, so testing the scale relationship would have established nothing. The narrower question was whether the figure ordered customers in a defensible sequence.
+Ignoring scale was deliberate. The figure was already suspected of sitting on a made-up scale, so testing its size would have proved nothing. The narrower question was whether it at least put customers in a sensible order.
 
 The result is expressed as a value between −1 and 1:
 
-- A result approaching **1** indicates that the two measures rank customers almost identically
-- A result approaching **0** indicates no relationship
-- A result approaching **−1** indicates that they rank customers in opposing sequences
+- A result close to **1** means the two measures rank customers almost the same way
+- A result close to **0** means there is no relationship
+- A result close to **−1** means they rank customers in opposite order
 
 ### Results
 
-| Supplied figure tested against | Result | Expected for a valid measure |
-|---|---|---|
-| Tenure with the business | **0.37** | Strong positive |
-| Total amount paid | **0.31** | Strong positive |
-| Monthly charge | **0.11** | Strong positive |
-| Whether the customer departed | **−0.12** | Clearly negative |
+| Supplied figure tested against | Result           | Expected for a valid measure |
+| ------------------------------ | ---------------- | ---------------------------- |
+| Tenure with the business       | **0.37**   | Strong positive              |
+| Total amount paid              | **0.31**   | Strong positive              |
+| Monthly charge                 | **0.11**   | Strong positive              |
+| Whether the customer departed  | **−0.12** | Clearly negative             |
 
-All four results fall materially below the threshold required. **The third result is determinative.**
+All four results fall well below what would be needed. **The third result settles the question.**
 
-The monthly charge is a direct and primary constituent of customer lifetime value. A doubling of the monthly charge should produce an approximate doubling of lifetime value. The recorded relationship is **0.11**, which indicates effectively no relationship at all.
+The monthly charge feeds directly into customer lifetime value. Doubling the monthly charge should roughly double the lifetime value. The relationship found is **0.11**, which is effectively no relationship at all.
 
-A figure which responds only marginally to the amount customers pay is not calculating what customers are worth.
+A figure that barely moves when the amount a customer pays changes is not measuring what that customer is worth.
 
 ### Conclusion
 
-Considered together — impossible boundaries, combined with negligible relationship to its own constituent variables — the conclusion is not in doubt.
+Taken together, limits that cannot be right and almost no relationship to the things the figure is built from leave no room for doubt.
 
-**The supplied customer lifetime value figure is a score expressed on an arbitrary scale. It is not a currency measure, and it was rejected.**
+**The supplied customer lifetime value figure is a score on a made-up scale. It is not an amount of money, and it was rejected.**
 
-Customer value is instead derived independently at Stage Two, calculated from actual monthly charges and actual tenure, with each assumption documented and open to challenge.
+Customer value is worked out from scratch at Stage Two instead, using the real monthly charges and the real tenure, with every assumption written down and open to challenge.
 
-**The derived figure is deliberately not validated against the supplied figure.** Once a measure has been established as unreliable, it cannot serve as a benchmark for the work replacing it. To do so would reintroduce the defect just identified.
+**The new figure is deliberately never checked against the supplied one.** Once a measure has been shown to be unreliable, it cannot be used as the yardstick for the work replacing it. Doing so would bring back the very fault just found.
 
 ---
 
 ## 5. Fields excluded from the model
 
-A predictive model identifies patterns within the information it is provided. Where it is provided with information which indirectly reveals the outcome, it will report excellent performance while having established nothing of value. This condition is known as **leakage**.
+A model finds patterns in the information it is given. If that information quietly gives away the answer, the model will look like it is performing very well while having learned nothing useful. This is known as **leakage**.
 
-Three fields were excluded from the model on three distinct grounds. The distinction is material, as such fields are frequently grouped together without differentiation.
+Three fields were left out of the model, each for a different reason. The difference matters, because fields like these are often lumped together as though they were the same.
 
-### The churn score — excluded on grounds of leakage
+### The churn score: excluded because of leakage
 
 This field contains IBM's own prediction of customer departure, supplied with the dataset.
 
-Its inclusion would mean the model was no longer predicting customer departure, but rather reproducing the conclusions of another model. Reported performance would be excellent, as the model would be replicating a supplied answer rather than identifying any underlying pattern.
+Including it would mean the model was no longer predicting customer departure at all, it would simply be copying another model's answer. Reported performance would look excellent, because the model would be repeating a supplied answer rather than finding any real pattern.
 
-A second objection carries greater weight in a regulated environment. IBM has not published the methodology behind the score. A model incorporating it could not be fully explained, as one of its principal inputs cannot be explained.
+A second objection matters more in a regulated industry. IBM has not published the method behind the score. A model using it could not be fully explained, because one of its main inputs cannot be explained.
 
-This project deliberately employs a model whose reasoning can be traced and presented to a regulator. Incorporating an unexplainable input would defeat that objective.
+This project deliberately uses a model whose reasoning can be traced and shown to a regulator. Feeding in something that cannot be explained would defeat that.
 
-### The recorded reason for departure — excluded on grounds of leakage
+### The recorded reason for departure: excluded because of leakage
 
-This field records the reason a customer gave for leaving and, as established above, exists only for customers who have already departed.
+This field records the reason a customer gave for leaving and, as set out above, only exists for customers who have already left.
 
-Its use in prediction would establish only that any customer with a recorded reason has departed. That is accurate, without value, and does not constitute a prediction.
+Using it to predict would show only that any customer with a reason recorded has left. That is true, useless, and not a prediction.
 
-**The field is nevertheless retained within the database** and used in the reporting layer. The knowledge that most departing customers cite a competitor's offer is of genuine commercial value.
+**The field is still kept in the database** and used in reporting. Knowing that most leaving customers point to a competitor's offer is genuinely useful to the business.
 
-The distinction is between information a model may learn from and information a report may present. The field is legitimate for explaining departures which have occurred, and unsuitable for predicting departures which have not.
+The difference is between information a model may learn from and information a report may show. The field is fine for explaining departures that have happened, and no use for predicting ones that have not.
 
-### The supplied customer lifetime value figure — excluded on grounds of unreliability
+### The supplied customer lifetime value figure: excluded because it is unreliable
 
-This exclusion rests on entirely separate grounds. The field does not reveal the outcome. It was excluded because, as demonstrated in Section 4, it does not measure what it purports to measure.
+This one is left out for a completely different reason. The field does not give away the outcome. It was left out because, as shown in Section 4, it does not measure what it claims to measure.
 
-Stated concisely:
+Put simply:
 
-- **The churn score and the recorded reason for departure constitute valid information available at the wrong point in time.**
-- **The supplied lifetime value figure does not constitute valid information at any point in time.**
+- **The churn score and the recorded reason for departure are sound information that only becomes available at the wrong moment.**
+- **The supplied lifetime value figure is not sound information at any moment.**
 
 ### Fields carrying no information
 
-Four further fields were removed on more straightforward grounds:
+Four further fields were removed for a simpler reason:
 
 - One field records the value 1 for every customer
 - One records "United States" for every customer
 - One records "California" for every customer
 - One combines latitude and longitude into a single text value, both of which are already present as separate numeric fields
 
-A field holding an identical value across every record conveys no information and cannot contribute to any analysis.
+A field that holds the same value for every record says nothing and cannot help any analysis.
 
 ---
 
@@ -244,46 +239,46 @@ Six fields record optional additional services which a customer may hold: online
 
 Each of these fields holds **three possible values rather than two**: "Yes", "No", and "No internet service".
 
-**The third value is not a variant of "No", and treating it as such would represent a significant error.**
+**The third value is not another way of saying "No", and treating it as one would be a serious mistake.**
 
-- **"No"** indicates that the service was offered and declined.
-- **"No internet service"** indicates that the service was never available, as the customer holds no internet subscription.
+- **"No"** means the service was offered and turned down.
+- **"No internet service"** means the service was never available, because the customer holds no internet subscription.
 
-The first customer exercised a choice. The second was never presented with one. They represent fundamentally different populations.
+The first customer made a choice. The second was never given one. They are two completely different groups.
 
-Most automated data preparation consolidates the third value into "No", as the two appear equivalent on inspection. Stage Two quantifies the cost of that assumption: the two populations prove to have departure rates differing by a factor of seven.
+In most standard data preparation, the third value would simply be folded into "No", because at a glance the two look the same. Stage Two shows what that shortcut would have cost: the two groups of customers leave at rates seven times apart.
 
-The fields were therefore retained exactly as supplied. The decision regarding their treatment is taken explicitly at Stage Two rather than absorbed into an automated preparation routine.
+The fields were therefore kept exactly as supplied. How to handle them is decided openly at Stage Two rather than being swallowed up by an automatic preparation step.
 
 ---
 
 ## Constraints of the dataset
 
-The dataset constitutes a **single point-in-time snapshot**. Each record describes one customer at one moment. It contains no dates, no transaction history, and no record of how customer behaviour changed over time.
+The dataset is a **snapshot taken at a single moment**. Each record describes one customer at one point in time. It holds no dates, no history of transactions, and no record of how customer behaviour changed over time.
 
-This constrains what may legitimately be claimed, and the constraint is stated here rather than left for a reader to identify.
+This limits what the project can honestly claim, and the limit is stated here rather than left for a reader to find.
 
-**The model cannot state which customers will depart within the next ninety days.** A claim of that nature requires observation of customers across a defined period, and this dataset contains no time dimension.
+**The model cannot say which customers will leave within the next ninety days.** A claim like that needs customers to be watched over a set period, and this dataset holds no time information at all.
 
-What the model can legitimately state is narrower but remains commercially useful: whether a customer's present profile resembles the profiles of customers who have already departed.
+What the model can honestly say is narrower, but still useful to the business: whether a customer's present profile looks like the profiles of customers who have already left.
 
-A production system operating within a telecommunications provider or a financial institution would be constructed differently. It would employ a defined observation window and monitor behavioural change — declining usage, increased contact with support functions, late payment, cancellation of individual products. These constitute the earliest indicators of intended departure, and none are present within this dataset.
+A real system inside a telecommunications provider or a bank would be built differently. It would watch customers over a set period and track changes in their behaviour, falling usage, more calls to support, late payment, cancellation of individual products. These are the earliest signs that a customer intends to leave, and none of them are present in this dataset.
 
 ---
 
 ## Summary of findings
 
-| Finding | Action taken |
-|---|---|
-| 7,043 customers across 33 fields, of whom 1,869 departed | Dataset confirmed as suitable for the project |
-| Missing values confined to the recorded reason for departure, fully accounted for by departure status | Left unaltered — the absence is correct |
-| Total charges stored as text owing to 11 unbilled new customers | Set to zero; all 11 records retained |
-| Supplied lifetime value figure exhibits impossible boundaries and negligible relationship to its constituent variables | Rejected; value derived independently at Stage Two |
-| Churn score and recorded reason for departure both reveal the outcome | Excluded from the model; reason retained for reporting purposes |
-| Four fields hold an identical value across all records | Removed |
-| Six service fields carry a third value denoting "never available" | Retained as supplied; addressed explicitly at Stage Two |
+| Finding                                                                                                            | Action taken                                         |
+| ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------- |
+| 7,043 customers across 33 fields, of whom 1,869 departed                                                           | Dataset confirmed as suitable for the project        |
+| Missing values found only in the recorded reason for departure, fully explained by whether the customer left       | Left alone, as the blank is correct                  |
+| Total charges stored as text because of 11 unbilled new customers                                                  | Set to zero; all 11 records kept                     |
+| Supplied lifetime value figure has limits that cannot be right and almost no relationship to what it is built from | Rejected; value worked out from scratch at Stage Two |
+| Churn score and recorded reason for departure both give away the outcome                                           | Left out of the model; reason kept for reporting     |
+| Four fields hold the same value for every record                                                                   | Removed                                              |
+| Six service fields carry a third value meaning "never available"                                                   | Kept as supplied; dealt with openly at Stage Two     |
 
-**Next stage:** construct the database, derive the required measures, and calculate customer value.
+**Next stage:** build the database, work out the measures the model needs, and calculate customer value.
 
 ---
 
@@ -293,4 +288,4 @@ The dataset was supplied with a customer lifetime value figure already calculate
 
 Both were tested. Both failed.
 
-The work described above does not constitute data cleaning in the conventional sense. It represents a decision to establish whether supplied figures are sound before building upon them, and a willingness to discard them where they are not.
+The work described above is not data cleaning in the usual sense. It represents a decision to establish whether supplied figures are sound before building upon them, and a willingness to discard them where they are not.

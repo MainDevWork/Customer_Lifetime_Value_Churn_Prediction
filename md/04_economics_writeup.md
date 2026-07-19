@@ -1,40 +1,21 @@
-# Stage Four — Intervention Economics
+# Stage Four: The Economics of Contacting Customers
 
 **Notebook:** `04_economics.ipynb`
 **Supporting file:** `sql/05_economics.sql`
 
 ---
 
-## Project overview
-
-Telecommunications providers lose customers to competitors on a continuous basis. The industry term for this is **churn**. It represents a significant commercial cost, as acquiring a new customer is considerably more expensive than retaining an existing one.
-
-The standard response is to predict which customers are most likely to leave, and to contact those customers with a retention offer.
-
-This project undertakes that prediction, and then addresses a second question which most churn projects omit: **whether a given customer is worth the cost of retaining them.** For a substantial proportion of the customer base, the answer is no. The cost of contacting them exceeds the value they represent.
-
-The work is delivered in four stages, each documented separately:
-
-| Stage | Purpose |
-|---|---|
-| One | Assess the contents and reliability of the source data |
-| Two | Construct the database, derive the required measures, and calculate customer value |
-| Three | Build, test and select the predictive model |
-| **Four (this document)** | Determine which customers justify intervention, and quantify the commercial return |
-
-**This document is written to be read independently of the underlying code.** All work undertaken and all findings reached are set out in full below.
-
----
-
 ## Position within the project
 
-Two components are now complete.
+This is the last of four documents describing a project which predicts which customers of a telecommunications provider are likely to leave, and works out which of them are worth the cost of keeping. The project and the source data are introduced in the Stage One document. The four write-ups form one continuous account, read in order and without reference to the underlying code.
 
-**Stage Two** produced a calculated value for every one of the 7,043 customers, derived independently after the value figure supplied with the dataset was found to be unreliable. The customer base carries a total value of R2.73 million.
+Two parts of the work are now complete.
 
-**Stage Three** produced a model estimating each customer's likelihood of departure. It identifies approximately four in every five departing customers, and for each genuine departure identified it also flags roughly one additional customer who was not in fact leaving.
+**Stage Two** produced a value for every one of the 7,043 customers, worked out from scratch after the value figure supplied with the dataset was found to be unreliable. The customer base carries a total value of R2.73 million.
 
-Those two components were deliberately kept apart throughout. Customer value was excluded from the model entirely, so that likelihood of departure and customer worth remained two separate questions with two separate answers.
+**Stage Three** produced a model that estimates how likely each customer is to leave. It finds about four in every five leaving customers, and for each real departure it finds, it also flags roughly one extra customer who was not leaving at all.
+
+Those two parts were deliberately kept apart throughout. Customer value was left out of the model completely, so that how likely a customer is to leave and how much they are worth stayed two separate questions with two separate answers.
 
 **This stage brings them together for the first time.**
 
@@ -42,117 +23,117 @@ Those two components were deliberately kept apart throughout. Customer value was
 
 ## The question this stage answers
 
-A churn model produces a list of customers ranked by their likelihood of departure. The conventional next step is to contact the customers at the top of that list.
+A churn model produces a list of customers sorted by how likely they are to leave. The usual next step is to contact the customers at the top of that list.
 
-That step contains an unexamined assumption: that a customer likely to depart is a customer worth retaining. Stage Two established that the opposite is frequently the case. The customers most likely to depart are month-to-month subscribers, who are also the least valuable customers the business holds.
+That step hides an assumption nobody has checked: that a customer likely to leave is a customer worth keeping. Stage Two showed that the opposite is often true. The customers most likely to leave are month-to-month subscribers, who are also the least valuable customers the business has.
 
-This stage therefore addresses a different question. Not **who is likely to leave**, but **whose retention is commercially justified**.
+This stage therefore asks a different question. Not **who is likely to leave**, but **who is worth the money it takes to keep them**.
 
-The distinction is not academic. As demonstrated below, a retention campaign directed at every customer the model identifies would lose money. The same model, applied selectively, returns a profit. The difference between those two outcomes is approximately R184,000, and none of it arises from improving the model.
+This is not a theoretical point. As shown below, a retention campaign aimed at every customer the model flags would lose money. The same model, used selectively, makes a profit. The gap between those two outcomes is about R184,000, and none of it comes from improving the model.
 
 ---
 
 ## 1. The decision rule
 
-The rule consists of a single calculation, applied to every customer individually:
+The rule is a single calculation, applied to every customer one at a time:
 
-> **Value of contacting a customer = probability of departure × probability of successful retention × customer value − cost of contact**
+> **Value of contacting a customer = chance of leaving × chance of keeping them × customer value − cost of contact**
 
-Where the result is positive, contact is justified. Where it is negative, contacting the customer destroys value — and this remains true even where the customer genuinely intended to depart.
+Where the answer is positive, contact is worth it. Where it is negative, contacting the customer destroys value, and that stays true even when the customer really was about to leave.
 
-The logic is straightforward. A customer is only worth pursuing if three conditions hold together: they are meaningfully likely to leave, there is a reasonable prospect of persuading them to stay, and what they are worth exceeds what the attempt costs. A failure on any one of the three renders the intervention uneconomic.
+The logic is simple. A customer is only worth chasing if three things hold at once: they are genuinely likely to leave, there is a fair chance of talking them out of it, and what they are worth is more than the attempt costs. Fail on any one of the three and the attempt loses money.
 
-**The cost is incurred for every customer contacted**, including those who were never departing. This matters because the model, in common with any model of this kind, correctly identifies roughly one flagged customer in two. The rule incorporates that limitation directly into the arithmetic rather than treating it as a separate problem to be argued around. A customer with a low probability of departure generates cost with little prospect of return, and the calculation excludes them automatically.
+**The cost is paid for every customer contacted**, including those who were never leaving. This matters because the model, like any model of this kind, is right about roughly one flagged customer in two. The rule builds that limit straight into the arithmetic rather than treating it as a separate problem to argue around. A customer with a low chance of leaving costs money with little prospect of a return, and the calculation leaves them out automatically.
 
 ---
 
 ## 2. The assumptions, stated in full
 
-Two figures within the calculation are not present within the dataset, and cannot be derived from it. They are assumptions. Both are recorded within `sql/05_economics.sql`, alongside the calculation which relies upon them, so that they cannot become separated from the results they produce.
+Two figures in the calculation are not in the dataset and cannot be worked out from it. They are assumptions. Both are written into `sql/05_economics.sql`, next to the calculation that uses them, so they cannot become separated from the results they produce.
 
-### Assumption 1 — cost of contact: R60 per customer
+### Assumption 1: cost of contact, R60 per customer
 
-This comprises two components:
+It is made up of two parts:
 
-| Component | Amount | Basis |
+| Part | Amount | Basis |
 |---|---|---|
-| Contact and administration | R20 | An automated electronic communication rather than an agent-led telephone call |
-| Retention offer | R40 | A reduction of R20 per month, sustained over two months |
+| Contact and administration | R20 | An automated message rather than a phone call from a member of staff |
+| Retention offer | R40 | A cut of R20 per month, held for two months |
 
-The figure is presented in components so that each may be challenged independently.
+The figure is shown in parts so that each part can be challenged on its own.
 
-**The basis for the amount.** The average customer within this dataset pays R64.76 per month. An offer of R20 per month therefore represents approximately a 30 percent reduction, sustained for a short period. The figure is derived from what customers actually pay, rather than selected to produce a favourable result.
+**Where the amount comes from.** The average customer in this dataset pays R64.76 per month. An offer of R20 per month is therefore about a 30 percent cut, held for a short period. The figure comes from what customers actually pay, rather than being chosen to produce a flattering result.
 
-### Assumption 2 — probability of successful retention: 30 percent
+### Assumption 2: chance of keeping a customer, 30 percent
 
-Of customers who would otherwise have departed, approximately three in ten are retained when presented with an offer.
+Of the customers who would otherwise leave, about three in ten stay when they are made an offer.
 
-**This is the least certain figure within the project**, and it should be treated as such. It is the first figure an operating business would replace with results drawn from its own campaigns. The findings below are directly proportional to it: were the true rate 15 percent, the returns reported here would halve.
+**This is the least certain figure in the project**, and it should be treated that way. It is the first figure a working business would replace with results from its own campaigns. The findings below rise and fall with it. If the true rate were 15 percent, the returns reported here would halve.
 
-### Assumption 3 — no adjustment for the timing of cash flows
+### Assumption 3: no adjustment for the timing of payments
 
-Revenue received in a future period is worth marginally less than revenue received today. Across the periods involved, at the amounts involved, the effect is too small to alter any decision regarding which customers to contact. The omission is deliberate rather than an oversight.
+Money received later is worth slightly less than money received today. Over the periods involved, at the amounts involved, the effect is too small to change any decision about which customers to contact. Leaving it out is a deliberate choice rather than an oversight.
 
 ---
 
 ## 3. A finding produced by the first version of the rule
 
-The rule was initially constructed on an assumption of **R340 per customer**, representing an agent-led telephone contact together with a larger offer sustained over six months. That figure reflects a conventional, high-touch retention programme of the kind many businesses operate.
+The rule was first built on a cost of **R340 per customer**, covering a phone call from a member of staff along with a bigger offer held for six months. That figure reflects the kind of retention programme many businesses run.
 
-**Applied to this customer base, it returned a single result: not one of the 7,043 customers justified contact.**
+**Applied to this customer base, it gave a single result: not one of the 7,043 customers was worth contacting.**
 
-That outcome was initially treated as a possible error in the calculation. Investigation established that it was not. It is a finding, and it is retained within the SQL file rather than discarded.
+At first this looked like a mistake in the calculation. Checking it showed that it was not. It is a finding, and it is kept in the SQL file rather than thrown away.
 
-To confirm it, the maximum recoverable amount was calculated for every customer:
+To confirm it, the most that could be recovered was worked out for every customer:
 
 | | Amount |
 |---|---|
-| Minimum recoverable from a single customer | R0.56 |
+| Least recoverable from a single customer | R0.56 |
 | Typical customer | R39.55 |
-| Highest 10 percent of customers | above R82.28 |
-| Highest 1 percent of customers | above R109.24 |
-| **Maximum across the entire customer base** | **R163.09** |
+| Top 10 percent of customers | above R82.28 |
+| Top 1 percent of customers | above R109.24 |
+| **Most recoverable from any customer in the business** | **R163.09** |
 
-**The most valuable customer in the business justifies expenditure of at most R163 to retain. The typical customer justifies R40.**
+**The most valuable customer in the business is worth spending at most R163 to keep. The typical customer is worth R40.**
 
-This establishes the point conclusively. The problem was never the model, the offer, or the targeting. **No customer within this business carries sufficient value to justify R340 of retention expenditure**, and no improvement to the model could change that.
+That settles it. The problem was never the model, the offer, or the targeting. **No customer in this business is worth enough to justify R340 of retention spend**, and no improvement to the model could change that.
 
-**Commercial implication.** Retention within this business must be low-cost and automated to be viable at all. An agent-led programme with substantial discounts cannot recover its own cost at these customer values. That conclusion is worth more to the business than the model itself, and it was reached before a single customer was contacted.
+**What this means commercially.** Retention in this business has to be cheap and automated to work at all. A programme built on personal calls and large discounts cannot cover its own cost at these customer values. That conclusion is worth more to the business than the model itself, and it was reached before a single customer was contacted.
 
-The cost assumption was revised to R60 on the basis of that conclusion. **The revision followed from the finding; it was not an adjustment made to obtain a preferred answer.** The distinction matters, and the reasoning is recorded in the SQL file so that the sequence remains auditable.
+The cost assumption was then changed to R60 because of that conclusion. **The change followed from the finding. It was not an adjustment made to get a better answer.** The difference matters, and the reasoning is written into the SQL file so that the order of events stays on record.
 
 ---
 
 ## 4. Results under the revised assumption
 
-Applying the rule at R60 per contact divides the customer base as follows:
+Applying the rule at R60 per contact splits the customer base as follows:
 
 | Decision | Customers | Value recovered | Cost | Net |
 |---|---|---|---|---|
 | **Contact** | 2,218 | R172,742 | R133,080 | **+R39,662** |
 | Do not contact | 4,825 | R105,819 | R289,500 | −R183,681 |
 
-The second row carries the substance of the finding. Those 4,825 customers would cost R289,500 to contact and would return R105,819. **Pursuing them destroys R183,681.**
+The second row is the important one. Those 4,825 customers would cost R289,500 to contact and would bring back R105,819. **Chasing them destroys R183,681.**
 
-### The comparison between the two available approaches
+### The two approaches compared
 
-**Contacting every customer:** recovers R278,562 against expenditure of R422,580. The programme **incurs a net loss of R144,018**.
+**Contacting every customer:** brings back R278,562 against a spend of R422,580. The programme **loses R144,018**.
 
-**Contacting only the 2,218 customers identified by the rule:** the programme **returns R39,662**, representing a 30 percent return on expenditure.
+**Contacting only the 2,218 customers the rule picks out:** the programme **returns R39,662**, a 30 percent return on the money spent.
 
-The difference between those two outcomes is approximately **R184,000**.
+The gap between those two outcomes is about **R184,000**.
 
-**None of that difference arises from model accuracy.** The model is identical in both cases, producing identical probabilities for identical customers. The entire difference arises from the decision regarding which customers should not be contacted.
+**None of that gap comes from the model being more accurate.** The model is the same in both cases, giving the same probabilities for the same customers. The whole difference comes from the decision about which customers should be left alone.
 
-> **Principal finding.** A churn model considered in isolation indicates that a retention campaign is commercially justified. The economics establish that it is not, unless targeted. The value lay not in the prediction but in the decision regarding whom to exclude.
+> **Main finding.** A churn model looked at on its own suggests that a retention campaign is worth running. The economics show that it is not, unless it is targeted. The value was not in the prediction. It was in deciding who to leave out.
 
 ---
 
-## 5. The decision distributed across value groups
+## 5. The decision across the value groups
 
-Stage Two divided the customer base into ten equally sized groups ranked by value. Applying the decision rule within each group produces the following:
+Stage Two split the customer base into ten equally sized groups ranked by value. Applying the decision rule inside each group gives the following:
 
-| Value group | Customers | Justify contact | Net if targeted | Net if all contacted |
+| Value group | Customers | Worth contacting | Net if targeted | Net if all contacted |
 |---|---|---|---|---|
 | 1 (most valuable) | 705 | 83 | +R1,600 | −R17,761 |
 | 2 | 705 | 349 | +R10,262 | −R2,598 |
@@ -165,33 +146,33 @@ Stage Two divided the customer base into ten equally sized groups ranked by valu
 | 9 | 704 | **0** | R0 | −R30,434 |
 | 10 (least valuable) | 704 | **0** | R0 | −R34,750 |
 
-Three findings arise from this distribution.
+Three findings come out of this.
 
-### Finding 1 — The least valuable 30 percent do not justify contact under any circumstances
+### Finding 1: The least valuable 30 percent are never worth contacting
 
-Not one customer within groups 8, 9 and 10 meets the threshold. That is none of the 2,112 individuals concerned.
+Not one customer in groups 8, 9 and 10 clears the bar. That is none of the 2,112 people in those groups.
 
-Contacting that population would destroy **R94,048**. The rule does not reduce expenditure upon this group; it eliminates it entirely.
+Contacting them would destroy **R94,048**. The rule does not reduce the spend on this group. It removes it altogether.
 
-**Commercial implication.** These customers are not worth retaining at any price the business could realistically offer. Recognising that releases roughly a third of the retention budget for deployment where it produces a return.
+**What this means commercially.** These customers are not worth keeping at any price the business could realistically offer. Accepting that frees up roughly a third of the retention budget to be used where it earns something back.
 
-### Finding 2 — The return is concentrated within groups 4 and 5
+### Finding 2: The return sits in groups 4 and 5
 
-Those 1,408 customers produce R21,712 between them, representing **55 percent of the programme's entire return from 20 percent of the customer base**.
+Those 1,408 customers produce R21,712 between them, which is **55 percent of the whole programme's return from 20 percent of the customer base**.
 
-These are also the only two groups which return a profit even without targeting, as shown in the final column.
+They are also the only two groups that make a profit even without targeting, as the final column shows.
 
-**Commercial implication.** If the business were able to run only one campaign, this is the population it should address.
+**What this means commercially.** If the business could run only one campaign, this is the group it should aim at.
 
-### Finding 3 — The most valuable customers feature only marginally
+### Finding 3: The most valuable customers barely feature
 
-Only 83 of the highest-value 705 customers justify contact. The remainder are not departing: this group carries a departure rate of 5.5 percent.
+Only 83 of the top 705 customers are worth contacting. The rest are not leaving, as this group loses only 5.5 percent of its customers.
 
-High value combined with low risk leaves correspondingly little to recover. Contacting the entire group would incur a loss of **R17,761**.
+High value with low risk leaves little to recover. Contacting the whole group would lose **R17,761**.
 
-**Commercial implication.** Retention effort directed at the most valuable customers, which is the intuitive approach and a common practice, would lose money here. Those customers are already secure, and the expenditure protects value which was not at risk.
+**What this means commercially.** Aiming retention effort at the most valuable customers, which is the instinctive move and a common one, would lose money here. Those customers are already safe, and the money spent protects value that was never at risk.
 
-> **Finding.** Ranking customers by likelihood of departure directs attention toward groups 4 to 6. Ranking by customer value directs attention toward groups 1 to 3. Neither list is correct in isolation. The return is located where the two overlap, and only this stage identifies it.
+> **Finding.** Sorting customers by how likely they are to leave points to groups 4 to 6. Sorting by customer value points to groups 1 to 3. Neither list is right on its own. The return sits where the two overlap, and only this stage finds it.
 
 ---
 
@@ -199,44 +180,44 @@ High value combined with low risk leaves correspondingly little to recover. Cont
 
 | Work undertaken | Outcome |
 |---|---|
-| Model probabilities combined with calculated customer value | 7,043 customers each carrying both a risk and a worth |
-| Decision rule applied at R340 per contact | No customer justified contact — establishing that high-touch retention is not viable at these values |
-| Maximum recoverable value established per customer | R163 at the highest, R40 for the typical customer |
-| Cost assumption revised to R60 on the basis of that finding | 2,218 customers identified as justifying contact |
-| Targeted approach compared against contacting all customers | A loss of R144,018 converted into a return of R39,662 |
-| Decision distributed across the ten value groups | 55% of the return concentrated in groups 4 and 5; groups 8 to 10 excluded entirely |
+| Model probabilities combined with customer value | 7,043 customers each carrying both a risk and a worth |
+| Decision rule applied at R340 per contact | No customer was worth contacting, showing that expensive staffed retention cannot pay for itself at these values |
+| Most recoverable value worked out per customer | R163 at the very top, R40 for the typical customer |
+| Cost assumption changed to R60 because of that finding | 2,218 customers found to be worth contacting |
+| Targeted approach compared against contacting everyone | A loss of R144,018 turned into a return of R39,662 |
+| Decision spread across the ten value groups | 55% of the return sits in groups 4 and 5; groups 8 to 10 are left out entirely |
 
 ---
 
-## Constraints and qualifications
+## Limits and qualifications
 
-Four qualifications apply to the figures above, and each is stated rather than left for a reader to identify.
+Four qualifications apply to the figures above, and each is stated rather than left for a reader to find.
 
-**1. The two principal assumptions are engineered, not observed.** Neither the cost of contact nor the retention success rate appears within the dataset. Both are documented within the SQL file. An operating business would replace both with figures drawn from its own campaign records, and the results would move accordingly.
+**1. The two main assumptions are judgements, not measurements.** Neither the cost of contact nor the success rate appears in the dataset. Both are written down in the SQL file. A working business would replace both with figures from its own campaign records, and the results would move to match.
 
-**2. The results are directly proportional to the retention success rate.** The 30 percent assumption is the least certain input within the project. Were the true rate 15 percent, every return reported here would approximately halve, and the number of customers justifying contact would fall substantially. This is the first figure which should be tested against real campaign data.
+**2. The results move in step with the success rate.** The 30 percent assumption is the least certain input in the project. If the true rate were 15 percent, every return reported here would roughly halve, and far fewer customers would be worth contacting. This is the first figure that should be tested against real campaign data.
 
-**3. The probabilities cover customers the model was trained upon.** Stage Three withheld a quarter of customers for evaluation, and all performance figures quoted in that stage derive from that withheld group. This stage, however, requires a probability for all 7,043 customers in order to total value across the complete customer base. The majority of those customers were used in training, so their probabilities are marginally optimistic. This does not affect the structure of the decision or the comparison between targeted and untargeted approaches, but the absolute returns should be read as indicative rather than precise.
+**3. The probabilities cover customers the model learned from.** Stage Three held back a quarter of customers for testing, and all the performance figures quoted there come from that held-back group. This stage needs a probability for all 7,043 customers in order to add up value across the whole customer base. Most of those customers were used in training, so their probabilities are slightly flattering. This does not change the shape of the decision or the comparison between targeting and not targeting, but the exact returns should be read as a guide rather than as precise figures.
 
-**4. The underlying dataset is a point-in-time snapshot.** It contains no dates and no behavioural history, so the model estimates whether a customer's present profile resembles that of customers who have already departed. It does not forecast departures within a defined future period. The economics rest upon that same foundation.
+**4. The dataset is a snapshot taken at one moment**, as recorded at Stage One. It holds no dates and no history of behaviour, so the model estimates whether a customer's profile today looks like that of customers who have already left. It does not predict departures within a set future period. The economics rest on that same footing.
 
 ---
 
 ## Outstanding work
 
-Two items remain within this stage:
+Two items remain in this stage:
 
-- **A sensitivity analysis on the retention success rate**, establishing how far that assumption may move before the programme ceases to be viable.
-- **An export of the scored and classified customer base**, to support the reporting layer.
+- **A sensitivity test on the retention success rate**, showing how far that assumption can move before the programme stops being worth running.
+- **An export of the scored and classified customer base**, to feed the reporting layer.
 
 ---
 
 ## Concluding principle
 
-The model constructed at Stage Three performs competently. It identifies approximately four in every five departing customers, and its reasoning can be inspected and explained.
+The model built at Stage Three works well. It finds about four in every five leaving customers, and its reasoning can be inspected and explained.
 
-Acting upon its output alone would have lost the business R144,018.
+Acting on its output alone would have lost the business R144,018.
 
-The difference between that outcome and a profitable campaign was not a better model, more data, or a more sophisticated method. It was the decision to establish what each customer was worth, to keep that question separate from the question of who was likely to leave, and to combine the two only at the point where money was to be committed.
+The difference between that outcome and a profitable campaign was not a better model, more data, or a cleverer method. It was the decision to work out what each customer was worth, to keep that question apart from the question of who was likely to leave, and to bring the two together only at the point where money was about to be spent.
 
-**A prediction identifies what is likely to happen. It does not establish what is worth doing about it.** That remains a separate question, and it is the one this stage was built to answer.
+**A prediction shows what is likely to happen. It does not show what is worth doing about it.** That is a separate question, and it is the one this stage was built to answer.
