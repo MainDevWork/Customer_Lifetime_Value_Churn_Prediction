@@ -1,238 +1,296 @@
-# Data Inventory: Profiling the Source Dataset
+# Stage One — Data Inventory and Reliability Assessment
 
 **Notebook:** `01_data_inventory.ipynb`
-**Purpose:** Establish what the source data contains, and whether it can be trusted, before any modelling decisions are made.
 
 ---
 
-## Why this stage exists
+## Project overview
 
-The dataset used in this project is the IBM Telco Customer Churn extract: 7,043 customer records across 33 fields. It is a widely used public dataset, and it arrives with several fields already calculated — including a churn score and a customer lifetime value figure.
+Telecommunications providers lose customers to competitors on a continuous basis. The industry term for this is **churn**. It represents a significant commercial cost, as acquiring a new customer is considerably more expensive than retaining an existing one.
 
-The temptation with a prepared dataset is to begin modelling immediately. This stage exists to resist that. Before a single feature is engineered, the data is examined for three things:
+The standard response is to predict which customers are most likely to leave, and to contact those customers with a retention offer.
 
-1. **Structure** — how many records, what fields, what type is each field held as
-2. **Completeness** — where are values missing, and is the absence explicable
-3. **Reliability** — do the supplied calculated fields actually measure what they claim to measure
+This project undertakes that prediction, and then addresses a second question which most churn projects omit: **whether a given customer is worth the cost of retaining them.** For a substantial proportion of the customer base, the answer is no. The cost of contacting them exceeds the value they represent, and retaining them therefore destroys value rather than creating it.
 
-The third point is the one that produced the most consequential finding in this project. Two fields supplied with the dataset were examined and subsequently excluded from the model. Had they been accepted at face value, the resulting model would have been both technically invalid and impossible to defend in a regulated environment.
+The project consists of two components:
 
-A note on scope: this notebook is exploratory only. No transformation performed here is carried into the modelling pipeline. All joins, aggregation, feature engineering and lifetime value logic are implemented in SQL. The notebook establishes findings; the SQL layer acts on them.
+1. **A predictive model** estimating the likelihood that each customer will leave.
+2. **A customer value calculation**, used to determine which customers justify the cost of intervention.
 
----
+The work is delivered in four stages, each documented separately:
 
-## Step 1 — Retrieving the dataset
+| Stage | Purpose |
+|---|---|
+| **One (this document)** | Assess the contents and reliability of the source data |
+| Two | Construct the database, derive the required measures, and calculate customer value |
+| Three | Build, test and select the predictive model |
+| Four | Determine which customers justify intervention, and quantify the commercial return |
 
-The dataset was downloaded programmatically via the `kagglehub` library rather than through a manual file download.
-
-This is a deliberate choice. A programmatic download means the data acquisition step is reproducible: anyone running the notebook retrieves the identical dataset from the identical source, with no dependency on a file sitting on a particular machine. The path and the file listing are printed to confirm what was retrieved.
-
-The full version of the dataset was used rather than the more commonly circulated abridged release. The abridged version omits the customer lifetime value field, the churn reason field, and the geographic detail — all of which are required for the customer value and segmentation work later in the project.
-
----
-
-## Step 2 — Loading the file and confirming its structure
-
-The workbook was loaded into a dataframe, and three things were printed immediately: the record count, the column count, and the full list of column names.
-
-**Result: 7,043 rows, 33 columns.**
-
-The purpose of printing the column list before doing anything else is to verify that the fields the project depends on are actually present. The customer value segmentation is the central component of this project; if the relevant fields were absent, that would need to be known at the outset rather than discovered several hours into the work. Confirming the contents is faster than assuming them.
-
-The first ten records were also displayed to give a visual sense of the data — what the values look like, how categories are worded, and whether anything is obviously irregular.
+**This document is written to be read independently of the underlying code.** All work undertaken and all findings reached are set out in full below.
 
 ---
 
-## Step 3 — Reviewing field types and missing values
+## The dataset
 
-Two checks were run: the data type held by each field, and a count of missing values, filtered to show only fields where missing values actually occur.
+The project uses a publicly available dataset published by IBM, describing the customer base of a telecommunications provider in California. It contains **7,043 customers**, with **33 items of information recorded for each**.
 
-### Missing values
+Those items fall into five categories:
 
-**Result: missing values occur in exactly one field — `Churn Reason` — with 5,174 records affected.**
+- **Customer characteristics** — gender, senior citizen status, whether the customer has a partner or dependants
+- **Location** — city, postal code, geographic coordinates
+- **Products held** — telephone line, internet service type, and six optional additional services including online security and streaming television
+- **Financial information** — monthly charge, total amount paid to date, contract type, payment method
+- **Outcome** — whether the customer has left, and if so, the reason recorded
 
-This number is not arbitrary, and the arithmetic confirms it. The dataset holds 7,043 customers. Of those, 1,869 have churned. That leaves 5,174 customers who have not churned — exactly matching the number of missing values.
+Two further figures are supplied with the dataset, and both are material to this stage:
 
-The conclusion is that `Churn Reason` is populated only for customers who have actually left. For a customer who is still with the business, there is no reason for leaving, because they have not left. The field is not incomplete; it is correctly empty.
-
-**No treatment was applied.** This matters. A common and damaging habit is to fill missing values automatically — substituting an average, or a placeholder — without first establishing why the values are missing. Here, filling them would have fabricated a departure reason for 5,174 customers who never departed. The correct response to a missing value is first to explain it, and only then to decide whether it requires action.
-
-### Field types
-
-**Result: `Monthly Charges` is stored as a number. `Total Charges` is stored as text.**
-
-Both fields hold currency amounts. Both should be numeric. When a field that ought to be numeric is held as text, it is because at least one entry in that field cannot be read as a number — a single non-numeric value forces the entire column to be treated as text.
-
-This is a data quality signal, and it was investigated rather than corrected on sight.
+- **A churn score** — IBM's own estimate of each customer's likelihood of leaving
+- **A customer lifetime value figure** — an estimate of the total worth of each customer to the business across the relationship
 
 ---
 
-## Step 4 — Completing the type inventory
+## Rationale for this stage
 
-The initial type output was truncated in display, so the final ten fields were printed separately to ensure no field went unexamined.
+The two supplied figures identified above are the principal reason this assessment was undertaken.
 
-This is a small step, but a necessary one. A truncated output means fields were not inspected, and an uninspected field is an assumption. The check confirmed the `Total Charges` finding and confirmed that no other field carried an unexpected type.
+Both appear authoritative, and both arrive already calculated, which represents a considerable saving in effort. The immediate temptation is to adopt them and proceed to the modelling work.
+
+That course of action carries a specific risk. Where a supplied figure is unsound, all subsequent work built upon it is also unsound — and the defect remains concealed, because the figure carries an appearance of authority and is therefore not questioned. Such problems typically surface only at the point where a result must be explained or defended.
+
+Three assessments were therefore carried out before any development work began:
+
+1. **A structural review** — the number of records, the fields present, and the manner in which each field is stored
+2. **An assessment of missing values** — where data is absent, and whether the absence can be accounted for
+3. **A reliability test of the supplied figures** — whether they measure what they purport to measure
+
+The third assessment produced the most significant finding of this stage. **Both supplied figures were tested, and both were rejected.** The grounds for rejection are set out below.
+
+**A note on scope.** No data is altered at this stage. This notebook examines and records only. All corrections are applied at Stage Two, implemented in SQL, where they remain visible and open to inspection.
 
 ---
 
-## Step 5 — Investigating the non-numeric entries
+## 1. Structural review
 
-The `Total Charges` field could have been converted to numeric in a single line, with any unreadable values discarded. That was not done. Converting first and asking questions later would have destroyed the evidence needed to understand the problem.
+The dataset was retrieved programmatically by the notebook rather than downloaded manually. This ensures that any party running the project obtains identical data from an identical source, with no dependency on a file held locally on an individual machine. Work which cannot be reproduced cannot be verified.
 
-Instead, the conversion was used diagnostically. Each value was tested for whether it could be read as a number, and any value that failed was flagged. The flagged records were then isolated and examined against the customer's tenure and churn status.
+The complete version of the dataset was used in preference to the abridged version which circulates more widely. The abridged version omits the customer lifetime value figure, the recorded reason for departure, and the geographic detail, all of which are required by this project.
 
-**Result: 11 records affected. Every one of them shares the same profile:**
+**Finding: 7,043 records across 33 fields, consistent with expectations.**
+
+The full list of field names was printed before any further work was undertaken. This project depends upon the presence of specific fields; had any been absent, that needed to be established immediately rather than discovered after substantial work had been completed.
+
+The first ten records were also displayed in order to establish the format of the values and identify any obvious irregularities.
+
+---
+
+## 2. Assessment of missing values
+
+All fields were examined for missing values. **Only one field contains any: the recorded reason for departure, which is absent for 5,174 customers.**
+
+On initial inspection this represents a substantial gap, affecting nearly three quarters of the dataset. Examination of the figures establishes that it is not.
+
+The dataset contains 7,043 customers. Of these, **1,869 have departed**. This leaves **5,174 customers still with the business** — precisely the number of absent values.
+
+The field is therefore populated only where a customer has actually departed. Where a customer remains with the business, no reason exists to be recorded. **The field is not incomplete; it is correctly empty.**
+
+**No values were substituted, and the reasoning is material.**
+
+Standard practice in much data preparation is to populate missing values automatically, typically with an average or a placeholder value, before establishing the cause of the absence. Applying that approach here would have fabricated a reason for departure for 5,174 customers who have not departed. All subsequent analysis involving that field would then have rested on invented data.
+
+The principle demonstrated is that the cause of a gap should be established before any decision is taken regarding whether to fill it. In the majority of cases, understanding the cause establishes that the gap should be left as it is.
+
+---
+
+## 3. Review of field types
+
+Each field is stored in a defined format — as a number, a date, or as text. A field containing monetary amounts should be stored as a number, so that it can be aggregated and averaged.
+
+One field failed this requirement. **Monthly charges is stored as a number, whereas total charges is stored as text.** Both contain monetary amounts and both should therefore be numeric.
+
+The cause of this behaviour is specific. Where a single entry within a column cannot be interpreted as a number, the entire column is treated as text. One unreadable value among 7,043 records is therefore sufficient to render the whole field unusable for calculation.
+
+The expedient response would have been to convert the column in a single operation, discarding any values which failed. This was not done. Converting first and investigating afterwards destroys the evidence required to establish the underlying cause.
+
+Each value was instead tested individually, and those which failed were isolated and examined.
+
+**Finding: eleven records are affected, and all eleven share an identical profile:**
 
 - Tenure of **zero months**
 - A monthly charge on record
-- Still an **active** customer
+- **Active customer status**
 
-The explanation follows directly. These are newly acquired customers who have signed up and have a monthly rate agreed, but who have not yet been billed for a full cycle. There is no total charged amount because nothing has been charged yet.
+The explanation follows directly. These are newly acquired customers who have agreed a price but have not yet been billed for a full cycle. No total charge exists because no charge has yet been raised.
 
-The blank is therefore **accurate, not corrupt**. It represents a real state of affairs rather than a data entry failure.
+**The blank value is therefore accurate rather than corrupt.** It records a genuine circumstance.
 
-**Decision: substitute zero, and retain all 11 records.**
+**Decision: substitute zero, and retain all eleven records.**
 
-Zero is the truthful value — these customers have genuinely paid nothing to date. Deleting the records, which is the more common shortcut, would have removed the entire population of brand-new customers from the analysis. Since new customers are precisely the group most exposed to early churn, removing them would have introduced a bias into the model at the very first step.
+Zero is the correct figure, as these customers have genuinely paid nothing to date. Deleting the eleven records would have been the faster course, and is what commonly occurs in practice. It would also have removed the entire population of newly acquired customers from the analysis.
 
----
-
-## Step 6 — Correcting the field and summarising the numeric data
-
-The conversion was applied, with zero substituted for the eleven unbilled accounts, and the field confirmed as numeric. Descriptive statistics were then produced for the core numeric fields — tenure, monthly charges, total charges, and the supplied CLTV figure.
-
-Descriptive statistics here means the count, average, spread, minimum, maximum, and the quarter-point values of each field. The purpose is to see the shape and range of every numeric field at once.
-
-**This is where the significant finding emerged.**
-
-The supplied `CLTV` field ranges from a minimum of **2,003** to a maximum of **6,500**. Meanwhile, `Total Charges` — revenue that customers have *already paid* — reaches **8,684**.
-
-That is a contradiction. Customer lifetime value is meant to represent the total worth of a customer to the business across the whole relationship. It cannot be lower than the money that customer has already handed over. A field claiming a customer is worth 6,500 at most, when that customer has already paid 8,684, is not measuring value in currency.
-
-The floor is equally telling. No customer scores below 2,003, and none above 6,500. A genuine distribution of customer value would not be neatly bounded at both ends in this way. Real customer populations contain both very low-value and very high-value outliers.
-
-This raised sufficient concern to warrant a formal test rather than a judgement call.
+The consequence is greater than it first appears. As Stage Two establishes, newly acquired customers constitute the population most likely to depart. Their removal would have introduced a systematic bias into the analysis before the substantive work had commenced.
 
 ---
 
-## Step 7 — Testing the reliability of the supplied CLTV field
+## 4. Reliability testing of the supplied customer lifetime value figure
 
-### The reasoning behind the test
+Following the correction of field types, summary statistics were produced for each numeric field, comprising the minimum value, maximum value, average and distribution.
 
-Customer lifetime value, however it is calculated, is fundamentally a function of two things: how much a customer pays per period, and how long they remain a customer. Any legitimate lifetime value measure must therefore move in step with monthly charges and with tenure. A long-standing customer paying a high monthly rate must score higher than a recent customer paying a low one. If it does not, it is not measuring lifetime value.
+This produced the most significant finding of the stage.
 
-This gives a testable proposition: **does the supplied field order customers in the same way its own mathematical inputs would?**
+**The supplied customer lifetime value figure has a minimum of 2,003 and a maximum of 6,500. Total charges — representing revenue already collected from customers — reaches 8,684.**
 
-### The method
+This combination is not possible. Customer lifetime value represents the total worth of a customer to the business across the entire relationship. It cannot be lower than revenue the business has already received from that customer. A figure recording a maximum worth of 6,500 for a customer who has already paid 8,684 is not denominated in currency.
 
-Spearman rank correlation was used rather than Pearson correlation.
+The boundaries provide a second indication. No customer scores below 2,003, and none above 6,500. Genuine customer value does not exhibit this pattern. Any real customer base contains customers of negligible value and customers of exceptional value.
 
-The distinction matters. Pearson correlation measures whether two fields move together on the same scale. Spearman measures only whether they **rank customers in the same order**, disregarding scale entirely. Since the supplied field was already suspected of being on an arbitrary scale, testing the scale relationship would have been meaningless. The relevant question was narrower: setting scale aside, does this field at least rank customers sensibly?
+Two independent indications of unreliability were considered sufficient to warrant a formal test rather than a judgement.
 
-Correlation is expressed between −1 and 1. A value near 1 indicates two measures rank items almost identically; near 0 indicates almost no relationship; near −1 indicates they rank in opposite order.
+### The basis of the test
 
-### The result
+Irrespective of the formula applied, customer lifetime value is determined by two variables: **the amount a customer pays per period**, and **the duration of the relationship**. Any legitimate lifetime value figure must therefore vary in accordance with both. A long-standing customer paying a high monthly charge must be ranked above a recently acquired customer paying a low one.
 
-| Field | Correlation with CLTV | What a valid measure would show |
+This provides a testable proposition: **does the supplied figure rank customers in the same order as its own constituent variables?**
+
+### Method
+
+The test applied **rank correlation**, a measure of whether two variables order a set of items in the same sequence. It disregards scale entirely.
+
+Disregarding scale was the intention. The figure was already suspected of being expressed on an arbitrary scale, so testing the scale relationship would have established nothing. The narrower question was whether the figure ordered customers in a defensible sequence.
+
+The result is expressed as a value between −1 and 1:
+
+- A result approaching **1** indicates that the two measures rank customers almost identically
+- A result approaching **0** indicates no relationship
+- A result approaching **−1** indicates that they rank customers in opposing sequences
+
+### Results
+
+| Supplied figure tested against | Result | Expected for a valid measure |
 |---|---|---|
-| Tenure Months | **0.37** | Strong positive — longer tenure means higher value |
-| Total Charges | **0.31** | Strong positive — more revenue means higher value |
-| Monthly Charges | **0.11** | Strong positive — higher rate means higher value |
-| Churn Value | **−0.12** | Clearly negative — departing customers are worth less |
+| Tenure with the business | **0.37** | Strong positive |
+| Total amount paid | **0.31** | Strong positive |
+| Monthly charge | **0.11** | Strong positive |
+| Whether the customer departed | **−0.12** | Clearly negative |
 
-Every correlation falls materially short of what the measure requires. The weakest is the most damaging: **monthly charges, at 0.11, is effectively no relationship at all.** What a customer pays every month is a direct and primary input to their lifetime value. A field that is nearly indifferent to it is not calculating lifetime value.
+All four results fall materially below the threshold required. **The third result is determinative.**
 
-### The conclusion
+The monthly charge is a direct and primary constituent of customer lifetime value. A doubling of the monthly charge should produce an approximate doubling of lifetime value. The recorded relationship is **0.11**, which indicates effectively no relationship at all.
 
-Read together, the two findings are conclusive. The field is bounded in a way no genuine value distribution would be, it falls below revenue already collected for some customers, and it does not track the variables that define it.
+A figure which responds only marginally to the amount customers pay is not calculating what customers are worth.
 
-**The supplied `CLTV` field is a synthetic score on an arbitrary scale, not a financial measure. It was rejected.**
+### Conclusion
 
-Customer lifetime value is instead derived independently in the SQL layer, calculated from monthly charges, tenure, and an explicitly stated cost-to-serve assumption, with every assumption documented.
+Considered together — impossible boundaries, combined with negligible relationship to its own constituent variables — the conclusion is not in doubt.
 
-Critically, the derived figure is **not validated against the supplied field**. A rejected measure cannot serve as a benchmark for the measure replacing it. Checking new work against a reference already established as unreliable would simply reintroduce the fault.
+**The supplied customer lifetime value figure is a score expressed on an arbitrary scale. It is not a currency measure, and it was rejected.**
 
----
+Customer value is instead derived independently at Stage Two, calculated from actual monthly charges and actual tenure, with each assumption documented and open to challenge.
 
-## Fields excluded from the model, and why
-
-Three fields were excluded from the feature set. The reasons differ, and the distinction between them is material.
-
-### `Churn Score` — excluded as target leakage
-
-This field is a churn prediction produced by IBM's own model and shipped with the dataset.
-
-Using it as an input would mean building a model that predicts another model's predictions. The resulting model would appear to perform extremely well, because it would be reproducing an answer it was handed rather than learning anything about customer behaviour. This is known as **target leakage**: information that reveals the outcome finds its way into the inputs, and the model's apparent accuracy becomes an illusion.
-
-There is a second objection, and in a regulated financial context it is the more serious one. The method behind IBM's score is not disclosed. A model built on top of it could not be explained, because a core input could not be explained. This project ships a logistic regression specifically because its decisions can be traced and audited. Building it on an opaque input would defeat that purpose entirely.
-
-### `Churn Reason` — excluded as target leakage, retained for reporting
-
-This field records why a customer left, and it exists only for customers who have already left.
-
-Using it as a model input would mean the model has access to information that only becomes available after the event it is meant to predict. In practice the model would learn that any customer with a recorded departure reason has departed — which is true, useless, and not a prediction.
-
-However, the field **is retained in the database** and is used in the Power BI reporting layer. Knowing that departed customers most commonly cite competitor offers is genuinely valuable to the business. The distinction is between what a model may learn from and what a report may show: the field is legitimate for explaining churn that has happened, and illegitimate for predicting churn that has not.
-
-### `CLTV` — excluded as an unreliable measurement
-
-This exclusion rests on entirely different grounds. `CLTV` is not leakage; it does not reveal the outcome. It was excluded because the testing above established that it does not measure what it claims to measure.
-
-The separation is worth stating plainly, because the three fields are easily lumped together as "the columns that were dropped":
-
-- **`Churn Score` and `Churn Reason`** were excluded because they are **valid information available at the wrong time** — they would corrupt the model by revealing the answer.
-- **`CLTV`** was excluded because it is **invalid information**, at any time.
-
-### Fields removed for having no variation
-
-Three further fields were removed on straightforward grounds: `Count` is 1 for every record, `Country` is "United States" for every record, and `State` is "California" for every record. A field with the same value in every row carries no information and cannot contribute to a model. The `Lat Long` field was also removed as a redundant text concatenation of the separate latitude and longitude fields, which are retained.
+**The derived figure is deliberately not validated against the supplied figure.** Once a measure has been established as unreliable, it cannot serve as a benchmark for the work replacing it. To do so would reintroduce the defect just identified.
 
 ---
 
-## An encoding issue identified for the SQL stage
+## 5. Fields excluded from the model
 
-Six service fields — online security, online backup, device protection, technical support, streaming television and streaming movies — each hold three possible values rather than two: "Yes", "No", and "No internet service".
+A predictive model identifies patterns within the information it is provided. Where it is provided with information which indirectly reveals the outcome, it will report excellent performance while having established nothing of value. This condition is known as **leakage**.
 
-The third value is not a variant of "No". "No" means the customer was offered the service and declined it. "No internet service" means the service was never available to them, because they hold no internet subscription at all. These describe entirely different customers: one made a choice, the other never had one.
+Three fields were excluded from the model on three distinct grounds. The distinction is material, as such fields are frequently grouped together without differentiation.
 
-Collapsing the third category into "No" — the automatic default in most encoding routines — would merge a declined sale with an impossible sale, and the model would draw conclusions about customer preference from records where no preference was ever expressed.
+### The churn score — excluded on grounds of leakage
 
-The fields are therefore stored exactly as received, and the encoding decision is made explicitly and visibly in the feature engineering layer rather than absorbed silently into a data preparation step.
+This field contains IBM's own prediction of customer departure, supplied with the dataset.
+
+Its inclusion would mean the model was no longer predicting customer departure, but rather reproducing the conclusions of another model. Reported performance would be excellent, as the model would be replicating a supplied answer rather than identifying any underlying pattern.
+
+A second objection carries greater weight in a regulated environment. IBM has not published the methodology behind the score. A model incorporating it could not be fully explained, as one of its principal inputs cannot be explained.
+
+This project deliberately employs a model whose reasoning can be traced and presented to a regulator. Incorporating an unexplainable input would defeat that objective.
+
+### The recorded reason for departure — excluded on grounds of leakage
+
+This field records the reason a customer gave for leaving and, as established above, exists only for customers who have already departed.
+
+Its use in prediction would establish only that any customer with a recorded reason has departed. That is accurate, without value, and does not constitute a prediction.
+
+**The field is nevertheless retained within the database** and used in the reporting layer. The knowledge that most departing customers cite a competitor's offer is of genuine commercial value.
+
+The distinction is between information a model may learn from and information a report may present. The field is legitimate for explaining departures which have occurred, and unsuitable for predicting departures which have not.
+
+### The supplied customer lifetime value figure — excluded on grounds of unreliability
+
+This exclusion rests on entirely separate grounds. The field does not reveal the outcome. It was excluded because, as demonstrated in Section 4, it does not measure what it purports to measure.
+
+Stated concisely:
+
+- **The churn score and the recorded reason for departure constitute valid information available at the wrong point in time.**
+- **The supplied lifetime value figure does not constitute valid information at any point in time.**
+
+### Fields carrying no information
+
+Four further fields were removed on more straightforward grounds:
+
+- One field records the value 1 for every customer
+- One records "United States" for every customer
+- One records "California" for every customer
+- One combines latitude and longitude into a single text value, both of which are already present as separate numeric fields
+
+A field holding an identical value across every record conveys no information and cannot contribute to any analysis.
 
 ---
 
-## A limitation stated openly
+## 6. A recording issue within the service fields
 
-This dataset is a **single point-in-time snapshot**. Each row is one customer as at one moment. There are no dates, no transaction history, and no record of how any customer's behaviour changed over time.
+Six fields record optional additional services which a customer may hold: online security, online backup, device protection, technical support, streaming television and streaming films.
 
-This constrains what the model can honestly claim. It cannot state that it predicts which customers will churn in the next ninety days, because there is no observation window in the data to support such a claim. What it can state is that given a customer's current profile, it identifies whether that profile resembles those of customers who have churned.
+Each of these fields holds **three possible values rather than two**: "Yes", "No", and "No internet service".
 
-A production system built inside a telecommunications provider or a bank would be designed differently. It would use a defined time window and behavioural indicators — declining usage, increased support contact, late payments, changes in product mix — which are the strongest early signals of departure and are entirely absent here.
+**The third value is not a variant of "No", and treating it as such would represent a significant error.**
 
-This limitation is stated at the outset rather than left to be discovered, because a stated constraint is a demonstration of understanding, while an unstated one is a gap.
+- **"No"** indicates that the service was offered and declined.
+- **"No internet service"** indicates that the service was never available, as the customer holds no internet subscription.
+
+The first customer exercised a choice. The second was never presented with one. They represent fundamentally different populations.
+
+Most automated data preparation consolidates the third value into "No", as the two appear equivalent on inspection. Stage Two quantifies the cost of that assumption: the two populations prove to have departure rates differing by a factor of seven.
+
+The fields were therefore retained exactly as supplied. The decision regarding their treatment is taken explicitly at Stage Two rather than absorbed into an automated preparation routine.
+
+---
+
+## Constraints of the dataset
+
+The dataset constitutes a **single point-in-time snapshot**. Each record describes one customer at one moment. It contains no dates, no transaction history, and no record of how customer behaviour changed over time.
+
+This constrains what may legitimately be claimed, and the constraint is stated here rather than left for a reader to identify.
+
+**The model cannot state which customers will depart within the next ninety days.** A claim of that nature requires observation of customers across a defined period, and this dataset contains no time dimension.
+
+What the model can legitimately state is narrower but remains commercially useful: whether a customer's present profile resembles the profiles of customers who have already departed.
+
+A production system operating within a telecommunications provider or a financial institution would be constructed differently. It would employ a defined observation window and monitor behavioural change — declining usage, increased contact with support functions, late payment, cancellation of individual products. These constitute the earliest indicators of intended departure, and none are present within this dataset.
 
 ---
 
 ## Summary of findings
 
-| # | Finding | Action taken |
-|---|---|---|
-| 1 | 7,043 records across 33 fields; 1,869 customers churned | Confirmed dataset suitable for the project |
-| 2 | Missing values confined to `Churn Reason`, fully explained by churn status | No treatment — absence is correct |
-| 3 | `Total Charges` held as text due to 11 blank entries, all unbilled new customers | Converted to numeric, zero substituted, all records retained |
-| 4 | Supplied `CLTV` field bounded, falls below collected revenue, and does not correlate with its own inputs | Rejected; lifetime value derived independently in SQL |
-| 5 | `Churn Score` and `Churn Reason` both reveal the outcome | Excluded from features; `Churn Reason` retained for reporting only |
-| 6 | `Count`, `Country`, `State` identical across all records; `Lat Long` redundant | Removed from the schema |
-| 7 | Six service fields hold a third category meaning "never available" | Stored as received; encoding decided explicitly in SQL |
+| Finding | Action taken |
+|---|---|
+| 7,043 customers across 33 fields, of whom 1,869 departed | Dataset confirmed as suitable for the project |
+| Missing values confined to the recorded reason for departure, fully accounted for by departure status | Left unaltered — the absence is correct |
+| Total charges stored as text owing to 11 unbilled new customers | Set to zero; all 11 records retained |
+| Supplied lifetime value figure exhibits impossible boundaries and negligible relationship to its constituent variables | Rejected; value derived independently at Stage Two |
+| Churn score and recorded reason for departure both reveal the outcome | Excluded from the model; reason retained for reporting purposes |
+| Four fields hold an identical value across all records | Removed |
+| Six service fields carry a third value denoting "never available" | Retained as supplied; addressed explicitly at Stage Two |
 
-**Next stage:** design the relational schema and implement the feature engineering and lifetime value logic in SQL.
+**Next stage:** construct the database, derive the required measures, and calculate customer value.
 
 ---
 
-## The principle underlying this stage
+## Concluding principle
 
-The dataset arrived with a customer lifetime value already calculated and a churn score already produced. Both could have been used without comment, and the project would have run faster for it.
+The dataset was supplied with a customer lifetime value figure already calculated and a churn prediction already produced. Both could have been adopted without comment, and the project would have progressed more rapidly as a result.
 
-Both were tested instead, and both failed. The lifetime value figure does not behave like a currency measure, and the churn score is an unexplainable input that would have invalidated the model's central design justification.
+Both were tested. Both failed.
 
-The work above is not data cleaning. It is the decision to establish whether supplied numbers are trustworthy before building on them — and the willingness to discard them when they are not.
+The work described above does not constitute data cleaning in the conventional sense. It represents a decision to establish whether supplied figures are sound before building upon them, and a willingness to discard them where they are not.

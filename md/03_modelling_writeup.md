@@ -1,357 +1,337 @@
-# Model Development: Building, Testing and Selecting a Churn Model
+# Stage Three — Model Construction, Testing and Selection
 
 **Notebook:** `03_modelling.ipynb`
-**Purpose:** Build two churn prediction models, compare them under equal conditions, and select one to carry forward — with the reason for the choice stated in advance.
 
 ---
 
-## Why this stage exists
+## Project overview
 
-The previous stage produced a database of 7,043 customers with seven derived features and a calculated lifetime value for each.
+Telecommunications providers lose customers to competitors on a continuous basis. The industry term for this is **churn**. It represents a significant commercial cost, as acquiring a new customer is considerably more expensive than retaining an existing one.
 
-This stage answers one question: **given what we know about a customer today, how likely are they to leave?**
+The standard response is to predict which customers are most likely to leave, and to contact those customers with a retention offer.
 
-Two models are built. A logistic regression, and a gradient boosting classifier. Both are measured under identical conditions and one is selected.
+This project undertakes that prediction, and then addresses a second question which most churn projects omit: **whether a given customer is worth the cost of retaining them.** For a substantial proportion of the customer base, the answer is no.
 
-### The choice is stated before the results, not after
+The work is delivered in four stages, each documented separately:
 
-**Logistic regression is the intended production model, and the reason is explainability.**
+| Stage | Purpose |
+|---|---|
+| One | Assess the contents and reliability of the source data |
+| Two | Construct the database, derive the required measures, and calculate customer value |
+| **Three (this document)** | Build, test and select the predictive model |
+| Four | Determine which customers justify intervention, and quantify the commercial return |
 
-A logistic regression produces one number for each feature, showing the direction and size of its effect. Any individual prediction can therefore be traced back to the reasons behind it: this customer was flagged because of their contract type, their monthly charge, and their tenure, in these proportions.
-
-In a regulated financial environment this is not a preference. A customer may ask why a decision was made about them, and a regulator may require the institution to demonstrate that the decision was made on defensible grounds. A model that cannot be explained cannot meet that requirement.
-
-Gradient boosting is built regardless. A stated preference for the simpler model only carries weight if the more complex alternative was actually measured. Without the comparison, the choice appears to be an avoidance of difficulty rather than a decision.
-
----
-
-## Step 1 — Loading the features
-
-The completed feature table was read from the database in a single query. 7,043 rows, 18 columns.
-
-No preparation was performed at this point — no cleaning, no reshaping, no calculation. Every feature was derived in SQL in the previous stage and arrives ready for use.
-
-This is worth noting explicitly, because the absence of work here is the result of work done earlier. The database performs the transformation; the modelling layer consumes a finished result.
+**This document is written to be read independently of the underlying code.** All work undertaken and all findings reached are set out in full below.
 
 ---
 
-## Step 2 — Deciding what the model is allowed to see
+## Position within the project
 
-Not every available column belongs in a model. Four groups were excluded, for four different reasons.
+Stage Two produced a structured database covering 7,043 customers of a telecommunications provider in California. For each customer it holds seven derived measures — tenure banding, the number of additional services held, the ease with which the customer may terminate their contract, and others — together with a calculated value for that customer.
 
-### The identifier
-
-`customer_id` labels a customer but describes nothing about them. It cannot help predict behaviour.
-
-### The target
-
-`churn_value` records whether the customer left. It is the thing being predicted and cannot also be an input.
-
-### The customer value fields
-
-`clv`, `historic_margin`, `expected_remaining_months` and `value_decile` were all excluded, and this exclusion is central to the project.
-
-**Churn risk and customer value are two separate questions.** The model answers the first: how likely is this customer to leave. The economics layer answers the second: what is this customer worth. The two are combined afterwards, at the point where a decision is made about whether to act.
-
-If customer value were fed into the model as an input, that separation would collapse. The model's output would already contain value information, and it would no longer be possible to demonstrate that ranking by value produces a different — and better — retention list than ranking by risk. The argument the project is built on would be lost.
-
-### Duplicated fields
-
-Four further fields were removed because they repeat information already present:
-
-- `tenure_band` is `tenure_months` in grouped form
-- `spend_band` is `monthly_charges` in grouped form
-- `contract` is `contract_risk` expressed in words
-- `has_internet` is already contained within `internet_service`, one of whose values is "No"
-
-Supplying the same information twice causes a specific problem, examined in detail below. In short: the model divides the effect between the duplicated fields in an arbitrary way, and the resulting numbers can no longer be read reliably — which would defeat the purpose of choosing an explainable model.
-
-The grouped fields remain in the database for reporting, where grouping is exactly what is wanted.
-
-### Converting text to numbers
-
-`internet_service` holds three text values: DSL, fibre optic, and none. A model cannot read text, so these were converted into numeric columns.
-
-One of the three was deliberately removed. With two of them known, the third is implied — if a customer is not on fibre and not on "none", they must be on DSL. Retaining all three would reintroduce the duplication described above. DSL therefore becomes the baseline, and the two remaining columns are read as differences from it.
-
-**Nine features carried forward.**
+The present stage addresses a single question: **based upon the information held about a customer at the present time, how likely are they to depart?**
 
 ---
 
-## Step 3 — Separating training data from test data
+## What a predictive model does
 
-The customers were divided into two groups. The model learns from one and is measured on the other, which it never sees during training.
+A predictive model is supplied with a set of historical customers, together with the known outcome for each — whether that customer departed or remained. It identifies the patterns which distinguish the two groups.
 
-**This separation is what makes the measurement meaningful.** A model evaluated on the same records it learned from can simply reproduce what it has memorised. It would report a level of performance it could not repeat on customers it had never encountered.
+Once trained, the model can be presented with a customer and asked to estimate the likelihood of departure, expressed as a probability between 0 and 1.
 
-Three settings were applied:
+Two models were constructed for this project.
 
-**A quarter of customers held back.** 5,282 for training, 1,761 for measurement.
+**A logistic regression.** This method fits a single equation. Each item of information about a customer is assigned one number, indicating the direction in which it influences the outcome and the strength of that influence. A large positive number indicates a strong influence toward departure; a negative number indicates an influence toward retention.
 
-**The churn proportion preserved in both groups.** 26.5% of all customers churned, and both groups were forced to hold that same proportion. Without this, a random division could produce a test group with an unrepresentative share of departing customers, and every figure measured against it would be misleading. Both groups came out at 0.265, confirming this worked.
+**A gradient boosting model.** Rather than a single equation, this method constructs several hundred small decision rules in sequence, each correcting the errors of those preceding it. It is capable of identifying more complex patterns — for instance, that a high monthly charge is significant only for customers able to terminate at any time.
 
-**The division fixed so it repeats identically.** Anyone re-running the notebook obtains the same split and the same results, and can therefore verify them. Without this, the reported figures would shift slightly on every run and could not be checked.
+### The selection was determined in advance of the results
 
----
+**The logistic regression was the intended production model throughout, on the grounds that its reasoning can be explained.**
 
-## Step 4 — Training the logistic regression
+Because each item of information carries a single readable number, any individual prediction can be traced to the factors which produced it. A customer was identified as at risk on the basis of their contract type, their monthly charge and their tenure, in stated proportions which any party may inspect.
 
-Three components were used, each addressing a specific problem.
+Within a bank or a telecommunications provider this is not a matter of preference but of requirement. A customer may ask why a particular decision was reached concerning them. A regulator may require the institution to demonstrate that the decision rested on defensible grounds. **A model whose reasoning cannot be presented cannot satisfy that requirement**, irrespective of its accuracy.
 
-### Placing features on a common scale
-
-The features are measured in very different units. Total charges run into the thousands; the add-on count runs from zero to six.
-
-Left unadjusted, the model treats the larger numbers as more influential purely because they are larger. Scaling places every feature on the same footing, so the resulting numbers reflect genuine influence rather than the unit of measurement.
-
-### Combining the steps into a single process
-
-The scaling and the model were bundled together into one object. This is a correctness measure, not a matter of tidiness.
-
-The scaler must learn its adjustments from the training data alone, then apply them to the test data. Performing the steps separately makes it easy to scale all the data at once — which allows information from the test set to influence the training, and quietly inflates the reported performance.
-
-### Correcting for the imbalance
-
-Only 26.5% of customers churned. A model optimising for overall accuracy could therefore score 73.5% by predicting that nobody ever leaves — a result that is arithmetically correct and commercially worthless.
-
-The model was instructed to treat a missed churner as a proportionately more serious error than a false alarm.
+The gradient boosting model was nevertheless constructed. A stated preference for the simpler method carries weight only where the more complex alternative has been built and measured. In the absence of that comparison, the selection appears to represent an avoidance of difficulty rather than a considered decision.
 
 ---
 
-## Step 5 — Measuring performance
+## 1. Determining the information available to the model
 
-### The measures used
+Not every item of information is appropriate for inclusion within a model. Four categories were deliberately excluded, on four separate grounds.
 
-**Precision** — of the customers the model flagged, what share genuinely churned. Low precision means retention money is spent on customers who were never going to leave.
+**The customer reference number.** This identifies a customer but describes nothing about them, and cannot contribute to predicting behaviour.
 
-**Recall** — of the customers who genuinely churned, what share the model identified. Low recall means customers are lost with no warning.
+**The departure outcome.** This is the item being predicted and cannot simultaneously serve as an input.
 
-These two measures move against one another. Flagging more customers catches more leavers but wastes more money; flagging fewer wastes less but misses more. **The balance between them is a commercial decision, not a technical one** — and it is precisely the decision the lifetime value layer exists to inform.
+**All information relating to customer value.** The calculated value, the profit realised to date, the expected remaining tenure and the value group were all excluded. This is the most consequential of the four exclusions.
 
-**ROC AUC** — a single figure between 0.5 and 1.0 describing how well the model separates departing customers from staying customers overall. Approximately 0.84 is the established range for this dataset. A figure close to 1.0 would indicate that information about the outcome had leaked into the inputs.
+The reasoning is central to the project. **Likelihood of departure and customer worth constitute two separate questions.** The model addresses the first. Stage Two addressed the second. The two are combined only at Stage Four, at the point where a decision regarding intervention is taken.
 
-### The result
+Were customer value supplied to the model as an input, that separation would be lost. The model's output would already incorporate value information. It would then be impossible to demonstrate that ranking customers by value produces a different, and superior, list to ranking them by risk. The central argument of the project would be forfeited.
 
-**ROC AUC: 0.840** — within the expected range, confirming nothing has leaked.
+**Information recorded more than once.** Four further fields repeat information already present: the banded form of tenure, the banded form of monthly spend, contract type expressed in words rather than as a ranking, and the internet indicator, which is already contained within the internet service field.
 
-Of the 1,761 held-back customers, 467 genuinely left:
+Supplying a model with the same fact twice produces a specific difficulty, examined in Section 5 below. In summary, the model apportions the effect between the duplicated items on an essentially arbitrary basis, and the resulting numbers cease to be reliable. As the readability of those numbers constitutes the entire justification for selecting this model, the duplicates were removed. The banded forms remain within the database for reporting purposes, where grouping is the intended treatment.
 
-- The model identified **370** of them
-- It missed **97**
-- It flagged **732 customers in total**, meaning **362 flags** were raised on customers who stayed
+**Conversion of text values into numeric form.** Internet service is recorded as text: DSL, fibre optic, or none. A model cannot interpret text, so these values were converted into numeric columns.
 
-That is **79.2% recall** and **50.5% precision**.
+One of the three was deliberately omitted. Where a customer holds neither fibre nor "none", they necessarily hold DSL, so the third column contributes no information and would reintroduce the duplication described above. DSL therefore serves as the baseline, and the remaining two columns are interpreted as differences from it.
 
-### Stated commercially
-
-Approximately four out of every five departing customers are identified. For each genuine churner found, roughly one additional customer is flagged unnecessarily.
-
-Whether that represents a sound investment depends entirely on what an intervention costs relative to what the customer is worth. For a customer in the top value decile, worth R1,044, spending R340 on a false alarm is easily absorbed. For a customer in the bottom decile, worth R81, the same intervention destroys value even when it succeeds.
-
-**That is why the economics layer exists**, and why the model's output is kept as a probability rather than a yes-or-no answer.
-
-### A deliberate observation on accuracy
-
-**Overall accuracy came out at 73.9%** — marginally *below* the 73.5% obtainable by predicting that no customer ever churns.
-
-This is retained rather than omitted, because it demonstrates directly why accuracy is the wrong measure for problems of this kind. A model that appears to perform worse than doing nothing is in fact identifying four out of five departing customers.
+**Nine measures were carried into the model.**
 
 ---
 
-## Step 6 — Reading the coefficients, and finding a problem
+## 2. Separating the data before training
 
-The coefficient attached to each feature was printed. This is the practical benefit of logistic regression: the model's reasoning is fully visible.
+The customers were divided into two groups. The model learns from the first and is evaluated against the second, which it does not encounter during training.
 
-A positive number pushes toward churn; a negative number pulls away from it. Because all features were placed on a common scale, the sizes can be compared directly.
+**This separation is what renders the evaluation meaningful.** A model evaluated against the same records from which it learned may simply reproduce what it has memorised, reporting a level of performance it could not achieve against customers it had not previously encountered.
 
-### Consistent with the SQL findings
+Three settings were applied.
 
-| Feature | Coefficient | Meaning |
+**One quarter of customers were withheld** — 5,282 records used for training, and 1,761 reserved for evaluation.
+
+**Both groups were required to hold the same proportion of departed customers.** Across the full dataset, 26.5 percent of customers departed. Without this setting, a random division could readily produce an evaluation group containing an unrepresentative proportion of departed customers, rendering every subsequent measurement misleading. Both groups returned 26.5 percent, confirming the setting operated correctly.
+
+**The division was fixed so that it reproduces identically.** Any party re-running the notebook obtains the same division and therefore the same figures, and is able to verify them. Without this setting, the reported figures would vary slightly on each execution and could not be independently confirmed.
+
+---
+
+## 3. Training the model
+
+Three measures were applied during training, each addressing a specific difficulty.
+
+**Placing the measures on a common scale.** The measures are recorded in substantially different units. Total charges extend into the thousands, whereas the count of additional services ranges from zero to six.
+
+Without adjustment, the model would treat the larger figures as more influential purely by virtue of their magnitude. Scaling places every measure on equivalent footing, ensuring the resulting numbers reflect genuine influence rather than the unit of measurement.
+
+**Combining the scaling and the model into a single process.** This addresses correctness rather than convenience. The scaling must be derived from the training data alone and subsequently applied unchanged to the evaluation data. Performing the two operations separately makes it straightforward to scale all data together, which permits information from the evaluation set to influence training and inflates the reported performance.
+
+**Correcting for the imbalance between the two outcomes.** Only 26.5 percent of customers departed. A model optimising for overall accuracy could therefore achieve 73.5 percent simply by predicting that no customer ever departs. That result is arithmetically correct and commercially worthless.
+
+The model was instructed to treat a missed departure as a more serious error than a false identification, in proportion to the relative infrequency of departures.
+
+---
+
+## 4. Evaluating performance
+
+### The measures applied
+
+**Precision** — of the customers identified by the model as at risk, the proportion who genuinely departed. Low precision indicates that retention expenditure is being directed toward customers who were not in fact leaving.
+
+**Recall** — of the customers who genuinely departed, the proportion the model identified. Low recall indicates that customers are being lost without warning.
+
+These two measures operate against one another. Identifying more customers captures more genuine departures but incurs greater wasted expenditure. Identifying fewer reduces waste but permits more losses. **The balance between them constitutes a commercial decision rather than a technical one**, and it is precisely the decision Stage Four exists to inform.
+
+**ROC AUC** — a single figure between 0.5 and 1.0 describing how effectively the model distinguishes departing customers from those who remain. A figure of 0.5 indicates performance no better than random selection. Approximately 0.84 represents the established range for this dataset. A figure approaching 1.0 would indicate that information concerning the outcome had reached the inputs.
+
+### Results
+
+**ROC AUC: 0.840** — within the expected range, confirming that no information concerning the outcome had leaked into the inputs.
+
+Of the 1,761 customers withheld for evaluation, 467 genuinely departed. The model:
+
+- **Identified 370 of them**
+- **Failed to identify 97**
+- **Flagged 732 customers in total**, meaning **362 identifications** related to customers who remained
+
+This equates to **79.2 percent recall** and **50.5 percent precision**.
+
+### Interpretation in commercial terms
+
+Approximately four in every five departing customers are identified. For each genuine departure identified, roughly one additional customer is flagged unnecessarily.
+
+Whether this represents sound commercial practice depends entirely upon the cost of contacting a customer relative to that customer's value. For a customer within the highest value group, worth R1,044, expenditure of R340 on a false identification is comfortably absorbed. For a customer within the lowest group, worth R81, the same expenditure destroys value even where the intervention succeeds.
+
+**This is the reason Stage Four exists**, and the reason the model's output is retained as a probability rather than a binary determination. A probability may be weighed against a value; a binary determination cannot.
+
+### A deliberate observation regarding accuracy
+
+**Overall accuracy was recorded at 73.9 percent** — marginally below the 73.5 percent obtainable by predicting that no customer ever departs.
+
+Assessed on that measure alone, the model appears to perform worse than taking no action whatsoever. In practice it identifies four in every five departing customers.
+
+Any model addressing a relatively infrequent event produces this pattern. Reporting accuracy in isolation would have indicated that a functioning model should be abandoned, which is why precision and recall are reported in its place.
+
+---
+
+## 5. Examining the model's reasoning
+
+As this is a logistic regression, each measure carries a single number indicating its influence. These were printed and examined.
+
+A positive number indicates influence toward departure; a negative number indicates influence toward retention. As all measures were placed on a common scale, the magnitudes may be compared directly against one another.
+
+### Results consistent with the Stage Two findings
+
+| Measure | Value | Interpretation |
 |---|---|---|
-| `monthly_charges` | **+1.84** | Higher monthly cost is the strongest driver of churn |
-| `contract_risk` | +0.73 | Month-to-month customers leave more |
-| `tenure_months` | **−1.22** | Longer-standing customers leave less |
-| `addon_count` | −0.82 | Each additional service held reduces churn |
+| Monthly charge | **+1.84** | A higher monthly charge is the strongest influence toward departure |
+| Contract risk | +0.73 | Month-to-month customers depart more frequently |
+| Tenure | **−1.22** | Longer-standing customers depart less frequently |
+| Additional services held | −0.82 | Each additional service reduces the likelihood of departure |
 
-Every one of these matches a finding already established in SQL, independently. That agreement is itself a check on the work.
+Each of these corresponds to a finding already produced independently at Stage Two, using entirely separate methods. That correspondence itself constitutes a check upon the work.
 
-### Two coefficients that did not make sense
+### Two results which were not coherent
 
-**`total_charges` at +0.57** stated that customers who have paid more over their lifetime are *more* likely to leave. That directly contradicts `tenure_months`, which stated the opposite. Both cannot be true.
+**Total charges, at +0.57**, indicated that customers who have paid more across their lifetime are *more* likely to depart. This directly contradicts the tenure result, which indicates the opposite. Both cannot be correct.
 
-**Fibre optic at −0.27** stated that fibre customers leave *less*, when fibre customers are known to be the highest-churn group in this dataset.
+**Fibre optic, at −0.27**, indicated that fibre customers depart *less frequently*, when fibre customers are known to constitute the highest-departure population within this dataset.
 
 ### The cause
 
-**The features overlapped with one another.**
+**Two of the measures overlapped with others already present.**
 
-`total_charges` is approximately `monthly_charges` multiplied by `tenure_months`. It introduces no new information — it is two existing features combined.
+Total charges is approximately the monthly charge multiplied by the number of months the customer has held an account. It introduces no new information, consisting of two measures already within the model combined together.
 
-When features carry overlapping information, the model distributes the effect between them arbitrarily. **The predictions remain sound**, which is why the ROC AUC of 0.840 is genuine. But the individual numbers stop being reliable — and those numbers are the entire justification for selecting this model.
+Where two measures carry the same underlying information, the model apportions the effect between them on an essentially arbitrary basis. **The predictions themselves remain sound** — which is why the figure of 0.840 is genuine — but the individual numbers cease to be dependable.
+
+As those numbers constitute the entire justification for selecting this model, the position could not be left unaddressed.
 
 ---
 
-## Step 7 — Removing the duplicate and refitting
+## 6. Removing the duplicated measure and refitting
 
-`total_charges` was removed and the model retrained.
+Total charges was removed and the model retrained.
 
-**ROC AUC moved from 0.840 to 0.838.** Effectively unchanged, confirming the feature contributed nothing beyond confusion. Its removal is a decision that can be defended rather than a loss to be explained.
+**The figure moved from 0.840 to 0.838.** Effectively unchanged, confirming that the measure contributed nothing beyond confusion. Its removal therefore represents a decision which can be defended, rather than a loss requiring explanation.
 
-**More significantly, `tenure_months` corrected itself** — from −1.22 to −0.74. That movement is the evidence. Its value had been distorted by the duplicated feature, and settled once the duplication was removed.
+**More significantly, the tenure result corrected itself**, moving from −1.22 to −0.74. That movement constitutes the evidence. Its value had been distorted by the duplicated measure and settled once the duplication was removed.
 
-### The fibre coefficient, correctly interpreted
+### The fibre result, correctly interpreted
 
-The fibre coefficient remained negative, and this turns out not to be a fault.
+The fibre result remained negative. On investigation this proved not to be a defect.
 
-**A coefficient always describes an effect while holding everything else constant.** A value of −0.28 therefore does not say that fibre customers churn less. It says: comparing a fibre customer and a DSL customer *paying the same monthly amount*, the fibre customer is slightly less likely to leave.
+**A result of this kind always describes an effect while all other factors are held constant.** A value of −0.28 therefore does not indicate that fibre customers depart less frequently. It indicates that, comparing a fibre customer and a DSL customer *paying an identical monthly amount*, the fibre customer is marginally less likely to depart.
 
 This was verified directly against the data:
 
-| Internet service | Customers | Churn rate |
+| Internet service | Customers | Proportion departed |
 |---|---|---|
 | Fibre optic | 3,096 | **41.9%** |
 | DSL | 2,421 | 19.0% |
 | None | 1,526 | 7.4% |
 
-Fibre customers do churn at more than twice the DSL rate. But they also pay more, and monthly charges have already accounted for that effect. The model has separated the influence of price from the influence of the product.
-
-**The commercial implication is specific: the problem lies in fibre pricing, not in the fibre product.**
+Fibre customers do depart at more than twice the DSL rate. They also pay considerably more, and the monthly charge has already accounted for that effect. **The model has separated the influence of price from the influence of the product itself.**
 
 ---
 
-## Step 8 — Building the comparison model
+## 7. Constructing the comparison model
 
-Gradient boosting was trained on the same features.
+The gradient boosting model was then trained upon the same nine measures.
 
-Rather than fitting a single equation, it constructs a large number of small decision rules in sequence, each correcting the errors of the ones before it. This allows it to capture patterns a single equation cannot — for example, that high charges matter only for customers on month-to-month contracts.
+No scaling was applied. This category of model divides the data at threshold points rather than measuring distances between values, so differences in units do not affect it.
 
-No scaling was applied. This type of model divides the data at thresholds rather than measuring distances between values, so differences in units do not affect it.
+### The initial comparison was not valid
 
-### The first comparison was not valid
+The first attempt produced a figure of 0.829 and recall of 48.6 percent, apparently substantially inferior to the logistic regression.
 
-The first attempt produced ROC AUC of 0.829 and recall of 48.6% — apparently far worse than the logistic regression.
+**The comparison was, however, weighted in favour of the preferred model.** The logistic regression had been given the imbalance correction described in Section 3. The gradient boosting model had not.
 
-**But the comparison was rigged, unintentionally, in favour of the preferred model.** The logistic regression had been given the imbalance correction described in Step 4. The gradient boosting model had not. It was therefore optimising for overall accuracy, which on imbalanced data means quietly favouring "will not churn" — hence the low recall.
+It was therefore optimising for overall accuracy, which upon data of this composition means favouring the prediction that customers will remain. This accounts entirely for its low recall. The comparison was measuring a difference in configuration rather than a difference in method.
 
-The failed comparison is retained in the notebook rather than deleted, because the correction is more instructive than a clean result would have been.
+**The invalid comparison is retained within the notebook rather than deleted**, as the correction is more instructive than a clean result would have been.
 
 ---
 
-## Step 9 — The comparison, conducted fairly
+## 8. The comparison conducted on equivalent terms
 
 The gradient boosting model was retrained with the same imbalance correction applied.
 
 | Measure | Logistic regression | Gradient boosting |
 |---|---|---|
 | ROC AUC | **0.838** | 0.833 |
-| Recall — churners identified | **79.2%** | 76.2% |
+| Departures identified | **79.2%** | 76.2% |
 | Precision | 50.5% | 50.7% |
-| Can individual decisions be explained | **Yes** | No |
+| Reasoning available for inspection | **Yes** | No |
 
-**The simpler model performs marginally better on both headline measures, and it is the one whose decisions can be explained.**
+**The simpler model returned marginally superior results on both headline measures, and it is the model whose decisions can be explained.**
 
-This is an unusually clean outcome. The normal argument is that a small loss in performance is worth the gain in explainability. Here there is no loss to defend.
+This represents an unusually favourable outcome. The customary argument is that a modest reduction in performance is an acceptable exchange for transparency. Here there is no reduction to defend.
 
-### A necessary qualification
-
-The two results are close enough that a different random division of the data could reverse the ordering.
-
-The defensible claim is therefore not that logistic regression is superior. It is that **the additional complexity of gradient boosting delivers no measurable benefit on this data** — and where complexity buys nothing, the explainable model is the correct choice.
+**One necessary qualification.** The two results are sufficiently close that a different random division of the data could reverse the ordering. The defensible claim is therefore not that the logistic regression is superior, but that **the additional complexity of gradient boosting delivers no measurable benefit upon this dataset** — and where complexity delivers no benefit, the explainable model is the correct selection.
 
 ---
 
-## What the model shows
+## Findings arising from the model
 
-The preceding sections describe how the model was built and tested. This section sets out what it revealed.
+### Finding 1 — Price is the strongest single influence upon departure
 
-### 1. Price is the strongest single driver of churn
+The monthly charge carries the largest value of any measure — greater than contract type, greater than tenure, and greater than the number of services held.
 
-`monthly_charges` carries the largest coefficient of any feature — larger than contract type, larger than tenure, larger than the number of services held.
+**Commercial implication.** A retention discussion which does not address the customer's bill is addressing the second-order problem. Contract type and length of relationship are both material, but the amount a customer pays each month influences their decision more than any other factor measured here.
 
-**What this means commercially.** A retention conversation that does not address the bill is addressing the second-order problem. Contract type and tenure matter, but the amount a customer pays each month influences their decision to leave more than anything else measured here.
+It also establishes a boundary upon what the business is able to address. A portion of this risk cannot be managed through improved service or increased contact. A customer departing because their bill is too high departs for a reason which only a pricing decision can resolve.
 
-It also sets a limit on what the business can do. Some of this risk is not manageable through service improvement or engagement. A customer leaving because the bill is too high leaves for a reason only a pricing decision can address.
+### Finding 2 — Fibre presents a pricing problem rather than a product problem
 
-### 2. Fibre has a pricing problem, not a product problem
+Fibre customers depart at 41.9 percent, more than twice the DSL rate of 19.0 percent. Assessed on that figure alone, the natural conclusion is that a fault exists within the fibre service, and the natural response is an investigation into service quality.
 
-Fibre customers churn at 41.9%, more than twice the DSL rate of 19.0%. On that figure alone, the natural conclusion is that something is wrong with the fibre service.
+The model demonstrates otherwise. Once price is held constant, fibre customers are marginally *less* likely to depart than DSL customers paying an equivalent amount. The elevated departure rate is explained by fibre customers paying more, not by the product itself.
 
-The model shows otherwise. Once price is held constant, fibre customers are marginally *less* likely to leave than DSL customers paying the same amount. The high churn is explained by the fact that fibre customers pay more, not by the product itself.
+**Commercial implication.** The appropriate response is a pricing review rather than a service investigation. These constitute substantially different exercises carrying substantially different costs, and the unadjusted departure figure directs attention toward the wrong one.
 
-**What this means commercially.** The correct response is a pricing review, not a service investigation. Those are materially different exercises with materially different costs, and the raw churn figure points to the wrong one.
+This represents the clearest demonstration within the project of why an explainable model justifies its selection. A model producing only a probability would have identified fibre customers as high risk and proceeded no further. The individual results establish *why*, and the reason determines the appropriate commercial response.
 
-This is the clearest example in the project of why an explainable model is worth having. A model producing only a probability would have flagged fibre customers as high risk and stopped there. The coefficients identify *why*, and the why determines what the business should actually do.
+### Finding 3 — Approximately half of any retention expenditure will reach customers who were not departing
 
-### 3. Half of any retention spend will be directed at customers who were never leaving
+The model identifies 79.2 percent of departing customers. It also flags approximately one additional customer for every genuine departure identified.
 
-The model identifies 79.2% of departing customers. It also flags roughly one additional customer for every genuine churner it finds — precision of 50.5%.
+**This does not constitute a defect requiring correction. It is the operating condition**, and it holds for any model constructed upon data of this nature. Departure cannot be predicted with certainty from a customer profile, as the decision depends upon circumstances the business cannot observe — a competitor's offer, a change of residence, an alteration in household income.
 
-**This is not a fault to be corrected. It is the working condition**, and it holds for any model on this kind of data. Churn cannot be predicted with certainty from a customer profile, because the decision to leave depends on circumstances the business cannot observe.
+**Commercial implication.** The decision to intervene cannot rest upon the model's output alone. Contacting an identified customer incurs the same cost whether or not that customer intended to depart. The operative question is therefore always whether the value protected justifies the total expenditure, including the proportion which will be wasted.
 
-**What this means commercially.** The decision to intervene cannot rest on the model's output alone. Contacting a flagged customer costs the same whether or not they were going to leave, so the question is always whether the value protected justifies the total spend — including the half that will be wasted.
+**The model establishes who is at risk. It cannot establish who is worth retaining.** That constitutes a separate question, and it is precisely why customer value was excluded from the model and addressed independently.
 
-For a customer in the top value decile, worth R1,044, an intervention costing R340 pays for itself even at a 50% waste rate. For a customer in the bottom decile, worth R81, the same intervention loses money even when it succeeds.
+### Finding 4 — The additional complexity delivered no benefit
 
-**The model identifies who is at risk. It cannot determine who is worth keeping.** That is a separate question, answered by the value layer, and this is precisely why the two were kept apart.
+The customary argument for selecting an explainable model is that a modest reduction in performance represents a fair exchange for transparency. Upon this dataset there is no reduction to weigh: 0.838 against 0.833.
 
-### 4. Accuracy would have given a misleading picture
+**Commercial implication.** Within a regulated environment the explainable model would have been the correct selection even at a modest disadvantage, as a decision which cannot be explained cannot be defended to a customer or a regulator. Here the selection carries no cost whatsoever.
 
-Overall accuracy is 73.9% — marginally below the 73.5% obtainable by predicting that no customer ever leaves.
-
-By that measure the model appears worse than doing nothing. In fact it identifies four out of every five departing customers.
-
-**What this means commercially.** Any model of a rare event will produce this pattern, and reporting accuracy alone would suggest abandoning a model that works. Recall, precision and the trade-off between them are the measures that describe what the model is actually worth.
-
-### 5. The added complexity delivered no benefit
-
-| Measure | Logistic regression | Gradient boosting |
-|---|---|---|
-| ROC AUC | 0.838 | 0.833 |
-| Churners identified | 79.2% | 76.2% |
-
-The usual argument for an explainable model is that a small loss in performance is worth the gain in transparency. On this data there is no loss to weigh.
-
-**What this means commercially.** In a regulated environment the explainable model would have been the correct choice even at a modest disadvantage, because a decision that cannot be explained cannot be defended to a customer or a regulator. Here that choice carries no cost at all.
-
-The finding also carries a general lesson worth stating: the substantial gains in this project came from understanding the data — the encoding correction, the removal of a duplicated feature, the separation of value from risk — not from the choice of algorithm.
+A broader observation is warranted. **The substantive gains within this project arose from understanding the data** rather than from the selection of algorithm — correcting the recording issue at Stage Two, removing the duplicated measure at this stage, and maintaining the separation between value and risk throughout.
 
 ---
 
-## Summary of this stage
+## Summary of findings
 
-| # | What was done | Outcome |
-|---|---|---|
-| 1 | Nine features selected, value fields deliberately excluded | Churn risk and customer value kept as separate questions |
-| 2 | Data divided into training and test groups, proportions preserved | Both groups at 26.5% churn |
-| 3 | Logistic regression trained with imbalance correction | ROC AUC 0.840, 79.2% of departing customers identified |
-| 4 | Coefficients inspected | Two behaved unexpectedly and were investigated |
-| 5 | Duplicated feature removed | Performance unchanged; a distorted coefficient corrected itself |
-| 6 | Fibre coefficient investigated rather than accepted | Found correct once properly interpreted; price identified as the driver, not the product |
-| 7 | Gradient boosting built and compared | First comparison found to be unfair and corrected |
-| 8 | Final comparison under identical conditions | 0.838 against 0.833 — complexity delivers no benefit |
+| Work undertaken | Outcome |
+|---|---|
+| Nine measures selected, all value information deliberately excluded | Risk and worth preserved as two separate questions |
+| Data divided into training and evaluation groups, proportions preserved | Both groups at 26.5% departed |
+| Logistic regression trained with the imbalance corrected | Figure of 0.840, with 79.2% of departures identified |
+| The model's reasoning examined | Two results behaved incoherently and were investigated |
+| Duplicated measure removed | Performance unchanged; a distorted result corrected itself |
+| Fibre result investigated rather than accepted | Found correct once properly interpreted; price identified as the underlying cause |
+| Gradient boosting constructed and compared | Initial comparison found to be invalid, and corrected |
+| Final comparison conducted on equivalent terms | 0.838 against 0.833 — the additional complexity delivers no benefit |
 
-**Model carried forward:** logistic regression, on grounds of regulatory explainability — a choice that, on this data, costs nothing.
+**Model selected:** the logistic regression, on the grounds that its decisions can be explained — a selection which, upon this dataset, carries no cost in performance.
 
-**Next stage:** the intervention economics layer, combining these churn probabilities with the lifetime values derived in SQL to determine which customers are commercially worth retaining.
-
----
-
-## Known limitation, stated openly
-
-This dataset is a single point-in-time snapshot. Each row describes one customer at one moment, with no dates and no history of how their behaviour changed.
-
-**This limits what the model can honestly claim.** It cannot state that it predicts which customers will leave in the next ninety days, because there is no observation period in the data to support such a claim. What it can state is that, given a customer's current profile, it identifies whether that profile resembles those of customers who have already left.
-
-A production system inside a telecommunications provider or a bank would be built differently. It would use a defined time window and behavioural indicators — declining usage, increased contact with support, late payments, changes in the products held — which are the strongest early warnings of departure and are entirely absent from this data.
-
-The constraint is stated here rather than left to be discovered. A limitation that has been identified and articulated demonstrates understanding of the method; one that has not been mentioned is simply a gap.
+**Next stage:** determine which customers justify the cost of intervention.
 
 ---
 
-## The principle underlying this stage
+## Constraints of the dataset
 
-Two things in this stage were wrong at first: a coefficient that contradicted an established finding, and a model comparison weighted in favour of the preferred outcome.
+The dataset constitutes a single point-in-time snapshot. Each record describes one customer at one moment, containing no dates and no record of how that customer's behaviour altered over time.
 
-Both were found, corrected, and left visible in the record rather than tidied away.
+**This constrains what may legitimately be claimed.** The model cannot state which customers will depart within the next ninety days, as such a claim requires observation across a defined period and this dataset contains no time dimension.
 
-A model that reports a good result is common. A model whose author can show what they checked, what they got wrong, and how they found it is the one that can be relied upon.
+What the model may legitimately state is narrower: whether a customer's present profile resembles the profiles of customers who have already departed.
+
+A production system operating within a telecommunications provider or a financial institution would be constructed differently. It would employ a defined observation window and monitor behavioural change — declining usage, increased contact with support functions, late payment, cancellation of individual products. These constitute the earliest indicators of intended departure, and none are present within this dataset.
+
+The constraint is stated here rather than left for a reader to identify. A limitation which has been recognised and articulated demonstrates command of the method; one which goes unmentioned reads as an oversight.
+
+---
+
+## Concluding principle
+
+Two elements of this stage were initially incorrect: a result which contradicted an established finding, and a model comparison weighted toward the preferred outcome.
+
+Both were identified, corrected, and retained visibly within the record rather than removed.
+
+A model reporting a favourable result is commonplace. A model whose author is able to demonstrate what was examined, what proved incorrect, and how the error was identified is the model which can be relied upon.
