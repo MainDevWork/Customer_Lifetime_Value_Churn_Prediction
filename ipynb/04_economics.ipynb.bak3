@@ -680,18 +680,14 @@
   },
   {
    "cell_type": "markdown",
-   "id": "c05e41c3",
+   "id": "6f8e444b",
    "metadata": {},
    "source": [
-    "## 6. Exporting the customer base for reporting\n",
+    "---\n",
     "\n",
-    "This runs `07_export.sql`, which creates `vw_customer_export`, and returns the row count as a check that no customers were lost.\n",
+    "Stage Four ends here, and with it the analysis. The findings, including the split between customers worth contacting and customers worth leaving alone, the comparison against contacting everyone, the pattern across the value groups and the results of the sensitivity test, are set out in `md/04_economics_writeup.md`.\n",
     "\n",
-    "The view gathers one row per customer from the layers already built: customer value, the churn probability, the decision, and the descriptive fields a report needs to group by. It calculates nothing new. Every figure in it was worked out earlier and is only being collected into a single flat row.\n",
-    "\n",
-    "That is deliberate. The reporting layer receives a finished answer and adds up. No business rule sits in Power BI, so no rule can be changed by editing a report, and every figure on a dashboard can be traced back to the SQL file that produced it.\n",
-    "\n",
-    "`churn_reason` is carried for drill-down only. It is recorded after a customer has left, which is why it was kept out of the model, and it must not be used as an input to anything predictive."
+    "**Remaining work:** export the scored and classified customer base in SQL, and build the reporting layer on top of it."
    ]
   },
   {
@@ -745,18 +741,6 @@
    ],
    "source": [
     "con.execute(open(\"../sql/07_export.sql\").read()).df()"
-   ]
-  },
-  {
-   "cell_type": "markdown",
-   "id": "6f8e444b",
-   "metadata": {},
-   "source": [
-    "---\n",
-    "\n",
-    "Stage Four ends here, and with it the analysis. The findings, including the split between customers worth contacting and customers worth leaving alone, the comparison against contacting everyone, the pattern across the value groups and the results of the sensitivity test, are set out in `md/04_economics_writeup.md`.\n",
-    "\n",
-    "**Remaining work:** the reporting layer, built in Power BI on the export produced above."
    ]
   }
  ],
