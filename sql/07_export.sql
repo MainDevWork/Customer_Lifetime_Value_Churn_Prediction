@@ -43,3 +43,9 @@ JOIN geography g ON c.zip_code    = g.zip_code
 JOIN vw_customer_features f ON e.customer_id = f.customer_id;
 
 SELECT COUNT(*) FROM vw_customer_export;
+
+-- Flat file for the reporting layer. DuckDB has no native Power BI connector,
+-- and this dataset is a fixed snapshot with nothing to refresh, so a file is
+-- the simpler and more reproducible route. Regenerating it is a re-run of this
+-- file, not a manual step.
+COPY vw_customer_export TO '../data/customer_export.csv' (HEADER, DELIMITER ',');
