@@ -44,3 +44,13 @@ GROUP BY success_rate
 ORDER BY success_rate;
 
 SELECT * FROM vw_sensitivity;
+
+-- Flat file for the reporting layer, on the same reasoning as 07_export.sql.
+-- The sensitivity curve is shown on the executive page, and these eight rows
+-- are the figures behind it. Exporting them rather than typing them into the
+-- report keeps the rule the project has held throughout: every number on a
+-- dashboard traces back to the SQL file that produced it.
+--
+-- This table is scenario-level, one row per success rate. The customer export
+-- is customer-level. The two share no key and must not be related in the model.
+COPY vw_sensitivity TO '../data/sensitivity_export.csv' (HEADER, DELIMITER ',');

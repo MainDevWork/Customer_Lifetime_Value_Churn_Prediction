@@ -1,0 +1,48 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.0.0/schema.json",
+  "name": "p3_footer",
+  "position": {
+    "x": 32,
+    "y": 702,
+    "z": 0,
+    "width": 1376,
+    "height": 76,
+    "tabOrder": 0
+  },
+  "visual": {
+    "visualType": "textbox",
+    "objects": {
+      "general": [
+        {
+          "properties": {
+            "paragraphs": [
+              {
+                "horizontalTextAlignment": "left",
+                "textRuns": [
+                  {
+                    "value": "A note on which model this is. ",
+                    "textStyle": {
+                      "fontSize": "12pt",
+                      "fontWeight": "bold",
+                      "color": "#3987e5",
+                      "fontFamily": "Segoe UI"
+                    }
+                  },
+                  {
+                    "value": "These figures are the selected model \u2014 logistic regression without total charges, the duplicated measure removed at Stage Three. The earlier version including that measure scored marginally higher (370 caught against 368) but its coefficients were unreliable, which was the reason for removing it. The figures here match the model that actually produced every probability used in the economics.",
+                    "textStyle": {
+                      "fontSize": "10pt",
+                      "color": "#898781",
+                      "fontFamily": "Segoe UI"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

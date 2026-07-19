@@ -1,0 +1,349 @@
+table Customers
+	lineageTag: 9c1f0a11-0004-4a00-9000-000000000001
+
+	measure 'Customers' = ```
+			COUNTROWS('Customers')
+			```
+		formatString: "#,0"
+		lineageTag: 9c1f0a11-0003-4a00-9000-000000000001
+		displayFolder: 1 Scale
+
+	measure 'Book Value' = ```
+			SUM('Customers'[clv])
+			```
+		formatString: "\R#,0"
+		lineageTag: 9c1f0a11-0003-4a00-9000-000000000002
+		displayFolder: 1 Scale
+
+	measure 'Value at Risk' = ```
+			SUM('Customers'[value_at_risk])
+			```
+		formatString: "\R#,0"
+		lineageTag: 9c1f0a11-0003-4a00-9000-000000000003
+		displayFolder: 1 Scale
+
+	measure 'Targeted Customers' = ```
+			CALCULATE([Customers], 'Customers'[decision] = "Intervene")
+			```
+		formatString: "#,0"
+		lineageTag: 9c1f0a11-0003-4a00-9000-000000000004
+		displayFolder: 2 Decision
+
+	measure 'Customers Left Alone' = ```
+			CALCULATE([Customers], 'Customers'[decision] = "Do not intervene")
+			```
+		formatString: "#,0"
+		lineageTag: 9c1f0a11-0003-4a00-9000-000000000005
+		displayFolder: 2 Decision
+
+	measure 'Share Targeted' = ```
+			DIVIDE([Targeted Customers], [Customers])
+			```
+		formatString: "0.0%"
+		lineageTag: 9c1f0a11-0003-4a00-9000-000000000006
+		displayFolder: 2 Decision
+
+	measure 'Net if Targeted' = ```
+			CALCULATE(SUM('Customers'[net_value]), 'Customers'[decision] = "Intervene")
+			```
+		formatString: "\R#,0"
+		lineageTag: 9c1f0a11-0003-4a00-9000-000000000007
+		displayFolder: 2 Decision
+
+	measure 'Net if Contact Everyone' = ```
+			SUM('Customers'[net_value])
+			```
+		formatString: "\R#,0"
+		lineageTag: 9c1f0a11-0003-4a00-9000-000000000008
+		displayFolder: 2 Decision
+
+	measure 'Value Destroyed by Untargeted Contact' = ```
+			CALCULATE(SUM('Customers'[net_value]), 'Customers'[decision] = "Do not intervene")
+			```
+		formatString: "\R#,0"
+		lineageTag: 9c1f0a11-0003-4a00-9000-000000000009
+		displayFolder: 2 Decision
+
+	measure 'Decision Swing' = ```
+			[Net if Targeted] - [Net if Contact Everyone]
+			```
+		formatString: "\R#,0"
+		lineageTag: 9c1f0a11-0003-4a00-9000-000000000010
+		displayFolder: 2 Decision
+
+	measure 'Value Recovered' = ```
+			CALCULATE(SUM('Customers'[expected_value_saved]), 'Customers'[decision] = "Intervene")
+			```
+		formatString: "\R#,0"
+		lineageTag: 9c1f0a11-0003-4a00-9000-000000000011
+		displayFolder: 2 Decision
+
+	measure 'Contact Cost' = ```
+			CALCULATE(SUM('Customers'[intervention_cost]), 'Customers'[decision] = "Intervene")
+			```
+		formatString: "\R#,0"
+		lineageTag: 9c1f0a11-0003-4a00-9000-000000000012
+		displayFolder: 2 Decision
+
+	measure 'Return on Spend' = ```
+			DIVIDE([Net if Targeted], [Contact Cost])
+			```
+		formatString: "0.0%"
+		lineageTag: 9c1f0a11-0003-4a00-9000-000000000013
+		displayFolder: 2 Decision
+
+	measure 'Test Customers' = ```
+			CALCULATE([Customers], 'Customers'[data_split] = "test")
+			```
+		formatString: "#,0"
+		lineageTag: 9c1f0a11-0003-4a00-9000-000000000014
+		displayFolder: 3 Model
+
+	measure 'Actual Leavers' = ```
+			CALCULATE([Customers], 'Customers'[data_split] = "test", 'Customers'[churn_value] = 1)
+			```
+		formatString: "#,0"
+		lineageTag: 9c1f0a11-0003-4a00-9000-000000000015
+		displayFolder: 3 Model
+
+	measure 'Caught' = ```
+			CALCULATE([Customers], 'Customers'[data_split] = "test", 'Customers'[outcome_class] = "Caught")
+			```
+		formatString: "#,0"
+		lineageTag: 9c1f0a11-0003-4a00-9000-000000000016
+		displayFolder: 3 Model
+
+	measure 'Missed' = ```
+			CALCULATE([Customers], 'Customers'[data_split] = "test", 'Customers'[outcome_class] = "Missed")
+			```
+		formatString: "#,0"
+		lineageTag: 9c1f0a11-0003-4a00-9000-000000000017
+		displayFolder: 3 Model
+
+	measure 'False Alarms' = ```
+			CALCULATE([Customers], 'Customers'[data_split] = "test", 'Customers'[outcome_class] = "False alarm")
+			```
+		formatString: "#,0"
+		lineageTag: 9c1f0a11-0003-4a00-9000-000000000018
+		displayFolder: 3 Model
+
+	measure 'Correctly Left Alone' = ```
+			CALCULATE([Customers], 'Customers'[data_split] = "test", 'Customers'[outcome_class] = "Correctly left alone")
+			```
+		formatString: "#,0"
+		lineageTag: 9c1f0a11-0003-4a00-9000-000000000019
+		displayFolder: 3 Model
+
+	measure 'Recall' = ```
+			DIVIDE([Caught], [Caught] + [Missed])
+			```
+		formatString: "0.0%"
+		lineageTag: 9c1f0a11-0003-4a00-9000-000000000020
+		displayFolder: 3 Model
+
+	measure 'Precision' = ```
+			DIVIDE([Caught], [Caught] + [False Alarms])
+			```
+		formatString: "0.0%"
+		lineageTag: 9c1f0a11-0003-4a00-9000-000000000021
+		displayFolder: 3 Model
+
+	measure 'Accuracy' = ```
+			DIVIDE([Caught] + [Correctly Left Alone], [Test Customers])
+			```
+		formatString: "0.0%"
+		lineageTag: 9c1f0a11-0003-4a00-9000-000000000022
+		displayFolder: 3 Model
+
+	measure 'Baseline Accuracy' = ```
+			DIVIDE([Test Customers] - [Actual Leavers], [Test Customers])
+			```
+		formatString: "0.0%"
+		lineageTag: 9c1f0a11-0003-4a00-9000-000000000023
+		displayFolder: 3 Model
+
+	column customer_id
+		dataType: string
+		lineageTag: 9c1f0a11-0002-4a00-9000-000000000001
+		summarizeBy: none
+		sourceColumn: customer_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column clv
+		dataType: double
+		formatString: "#,0.00"
+		lineageTag: 9c1f0a11-0002-4a00-9000-000000000002
+		summarizeBy: none
+		sourceColumn: clv
+
+		annotation SummarizationSetBy = Automatic
+
+	column value_decile
+		dataType: int64
+		formatString: "0"
+		lineageTag: 9c1f0a11-0002-4a00-9000-000000000003
+		summarizeBy: none
+		sourceColumn: value_decile
+
+		annotation SummarizationSetBy = Automatic
+
+	column churn_probability
+		dataType: double
+		formatString: "0.0%"
+		lineageTag: 9c1f0a11-0002-4a00-9000-000000000004
+		summarizeBy: none
+		sourceColumn: churn_probability
+
+		annotation SummarizationSetBy = Automatic
+
+	column decision
+		dataType: string
+		lineageTag: 9c1f0a11-0002-4a00-9000-000000000005
+		summarizeBy: none
+		sourceColumn: decision
+
+		annotation SummarizationSetBy = Automatic
+
+	column net_value
+		dataType: double
+		formatString: "#,0.00"
+		lineageTag: 9c1f0a11-0002-4a00-9000-000000000006
+		summarizeBy: none
+		sourceColumn: net_value
+
+		annotation SummarizationSetBy = Automatic
+
+	column value_at_risk
+		dataType: double
+		formatString: "#,0.00"
+		lineageTag: 9c1f0a11-0002-4a00-9000-000000000007
+		summarizeBy: none
+		sourceColumn: value_at_risk
+
+		annotation SummarizationSetBy = Automatic
+
+	column expected_value_saved
+		dataType: double
+		formatString: "#,0.00"
+		lineageTag: 9c1f0a11-0002-4a00-9000-000000000008
+		summarizeBy: none
+		sourceColumn: expected_value_saved
+
+		annotation SummarizationSetBy = Automatic
+
+	column intervention_cost
+		dataType: double
+		formatString: "#,0.00"
+		lineageTag: 9c1f0a11-0002-4a00-9000-000000000009
+		summarizeBy: none
+		sourceColumn: intervention_cost
+
+		annotation SummarizationSetBy = Automatic
+
+	column churn_value
+		dataType: int64
+		formatString: "0"
+		lineageTag: 9c1f0a11-0002-4a00-9000-000000000010
+		summarizeBy: none
+		sourceColumn: churn_value
+
+		annotation SummarizationSetBy = Automatic
+
+	column data_split
+		dataType: string
+		lineageTag: 9c1f0a11-0002-4a00-9000-000000000011
+		summarizeBy: none
+		sourceColumn: data_split
+
+		annotation SummarizationSetBy = Automatic
+
+	column predicted_churn
+		dataType: int64
+		formatString: "0"
+		lineageTag: 9c1f0a11-0002-4a00-9000-000000000012
+		summarizeBy: none
+		sourceColumn: predicted_churn
+
+		annotation SummarizationSetBy = Automatic
+
+	column outcome_class
+		dataType: string
+		lineageTag: 9c1f0a11-0002-4a00-9000-000000000013
+		summarizeBy: none
+		sourceColumn: outcome_class
+
+		annotation SummarizationSetBy = Automatic
+
+	column churn_reason
+		dataType: string
+		lineageTag: 9c1f0a11-0002-4a00-9000-000000000014
+		summarizeBy: none
+		sourceColumn: churn_reason
+
+		annotation SummarizationSetBy = Automatic
+
+	column contract
+		dataType: string
+		lineageTag: 9c1f0a11-0002-4a00-9000-000000000015
+		summarizeBy: none
+		sourceColumn: contract
+
+		annotation SummarizationSetBy = Automatic
+
+	column tenure_band
+		dataType: string
+		lineageTag: 9c1f0a11-0002-4a00-9000-000000000016
+		summarizeBy: none
+		sourceColumn: tenure_band
+
+		annotation SummarizationSetBy = Automatic
+
+	column spend_band
+		dataType: string
+		lineageTag: 9c1f0a11-0002-4a00-9000-000000000017
+		summarizeBy: none
+		sourceColumn: spend_band
+
+		annotation SummarizationSetBy = Automatic
+
+	column city
+		dataType: string
+		lineageTag: 9c1f0a11-0002-4a00-9000-000000000018
+		summarizeBy: none
+		sourceColumn: city
+		dataCategory: City
+
+		annotation SummarizationSetBy = Automatic
+
+	column latitude
+		dataType: double
+		formatString: "#,0.000000"
+		lineageTag: 9c1f0a11-0002-4a00-9000-000000000019
+		summarizeBy: none
+		sourceColumn: latitude
+		dataCategory: Latitude
+
+		annotation SummarizationSetBy = Automatic
+
+	column longitude
+		dataType: double
+		formatString: "#,0.000000"
+		lineageTag: 9c1f0a11-0002-4a00-9000-000000000020
+		summarizeBy: none
+		sourceColumn: longitude
+		dataCategory: Longitude
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Customers = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(File.Contents(RepoPath & "\data\customer_export.csv"), [Delimiter=",", Encoding=65001, QuoteStyle=QuoteStyle.Csv]),
+				    Headers = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
+				    Typed = Table.TransformColumnTypes(Headers, {{"customer_id", type text}, {"clv", type number}, {"value_decile", Int64.Type}, {"churn_probability", type number}, {"decision", type text}, {"net_value", type number}, {"value_at_risk", type number}, {"expected_value_saved", type number}, {"intervention_cost", type number}, {"churn_value", Int64.Type}, {"data_split", type text}, {"predicted_churn", Int64.Type}, {"outcome_class", type text}, {"churn_reason", type text}, {"contract", type text}, {"tenure_band", type text}, {"spend_band", type text}, {"city", type text}, {"latitude", type number}, {"longitude", type number}})
+				in
+				    Typed
+
+	annotation PBI_ResultType = Table

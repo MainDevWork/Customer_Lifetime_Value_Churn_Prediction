@@ -1,0 +1,108 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/1.0.0/schema.json",
+  "name": "p1_finding",
+  "position": {
+    "x": 32,
+    "y": 566,
+    "z": 0,
+    "width": 1376,
+    "height": 116,
+    "tabOrder": 0
+  },
+  "visual": {
+    "visualType": "textbox",
+    "objects": {
+      "general": [
+        {
+          "properties": {
+            "paragraphs": [
+              {
+                "horizontalTextAlignment": "left",
+                "textRuns": [
+                  {
+                    "value": "The finding. ",
+                    "textStyle": {
+                      "fontSize": "12pt",
+                      "fontWeight": "bold",
+                      "color": "#3987e5",
+                      "fontFamily": "Segoe UI"
+                    }
+                  },
+                  {
+                    "value": "Acting on the churn model alone \u2014 contacting every customer it flags \u2014 loses ",
+                    "textStyle": {
+                      "fontSize": "12pt",
+                      "color": "#ffffff",
+                      "fontFamily": "Segoe UI"
+                    }
+                  },
+                  {
+                    "value": "R144,018",
+                    "textStyle": {
+                      "fontSize": "12pt",
+                      "fontWeight": "bold",
+                      "color": "#e66767",
+                      "fontFamily": "Segoe UI"
+                    }
+                  },
+                  {
+                    "value": ". Contacting only the 2,218 customers whose expected recovery exceeds the R60 cost returns ",
+                    "textStyle": {
+                      "fontSize": "12pt",
+                      "color": "#ffffff",
+                      "fontFamily": "Segoe UI"
+                    }
+                  },
+                  {
+                    "value": "R39,662",
+                    "textStyle": {
+                      "fontSize": "12pt",
+                      "fontWeight": "bold",
+                      "color": "#3987e5",
+                      "fontFamily": "Segoe UI"
+                    }
+                  },
+                  {
+                    "value": ", a 30% return on spend. The gap is roughly R184,000 and none of it comes from a better model \u2014 the probabilities are identical in both cases. The value was in deciding who to leave out.",
+                    "textStyle": {
+                      "fontSize": "12pt",
+                      "color": "#ffffff",
+                      "fontFamily": "Segoe UI"
+                    }
+                  }
+                ]
+              },
+              {
+                "horizontalTextAlignment": "left",
+                "textRuns": [
+                  {
+                    "value": "",
+                    "textStyle": {
+                      "fontSize": "10pt",
+                      "color": "#898781",
+                      "fontFamily": "Segoe UI"
+                    }
+                  }
+                ]
+              },
+              {
+                "horizontalTextAlignment": "left",
+                "textRuns": [
+                  {
+                    "value": "Assumptions: R60 cost per contact (R20 admin + R40 offer) and a 30% retention success rate, both stated in sql/05_economics.sql. The success rate is the least certain input; below about 25% the programme stops being worth running.",
+                    "textStyle": {
+                      "fontSize": "10pt",
+                      "color": "#898781",
+                      "fontFamily": "Segoe UI"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

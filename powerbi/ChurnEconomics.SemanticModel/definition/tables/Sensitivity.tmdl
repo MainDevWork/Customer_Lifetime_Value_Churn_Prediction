@@ -1,0 +1,105 @@
+table Sensitivity
+	lineageTag: 9c1f0a11-0005-4a00-9000-000000000001
+
+	measure 'Sens Net Targeted' = ```
+			SUM('Sensitivity'[net_return_targeted])
+			```
+		formatString: "\R#,0"
+		lineageTag: 9c1f0a11-0003-4a00-9000-000000000100
+		displayFolder: 4 Sensitivity
+
+	measure 'Sens Net Everyone' = ```
+			SUM('Sensitivity'[net_return_contact_everyone])
+			```
+		formatString: "\R#,0"
+		lineageTag: 9c1f0a11-0003-4a00-9000-000000000101
+		displayFolder: 4 Sensitivity
+
+	measure 'Sens Customers Contacted' = ```
+			SUM('Sensitivity'[customers_contacted])
+			```
+		formatString: "#,0"
+		lineageTag: 9c1f0a11-0003-4a00-9000-000000000102
+		displayFolder: 4 Sensitivity
+
+	measure 'Sens Return on Spend' = ```
+			SUM('Sensitivity'[return_on_spend_pct]) / 100
+			```
+		formatString: "0.0%"
+		lineageTag: 9c1f0a11-0003-4a00-9000-000000000103
+		displayFolder: 4 Sensitivity
+
+	column success_rate
+		dataType: double
+		formatString: "0%"
+		lineageTag: 9c1f0a11-0002-4a00-9000-000000000200
+		summarizeBy: none
+		sourceColumn: success_rate
+
+		annotation SummarizationSetBy = Automatic
+
+	column customers_contacted
+		dataType: int64
+		formatString: "#,0"
+		lineageTag: 9c1f0a11-0002-4a00-9000-000000000201
+		summarizeBy: none
+		sourceColumn: customers_contacted
+
+		annotation SummarizationSetBy = Automatic
+
+	column pct_of_base
+		dataType: double
+		formatString: "0.0"
+		lineageTag: 9c1f0a11-0002-4a00-9000-000000000202
+		summarizeBy: none
+		sourceColumn: pct_of_base
+
+		annotation SummarizationSetBy = Automatic
+
+	column net_return_targeted
+		dataType: double
+		formatString: "#,0.00"
+		lineageTag: 9c1f0a11-0002-4a00-9000-000000000203
+		summarizeBy: none
+		sourceColumn: net_return_targeted
+
+		annotation SummarizationSetBy = Automatic
+
+	column net_return_contact_everyone
+		dataType: double
+		formatString: "#,0.00"
+		lineageTag: 9c1f0a11-0002-4a00-9000-000000000204
+		summarizeBy: none
+		sourceColumn: net_return_contact_everyone
+
+		annotation SummarizationSetBy = Automatic
+
+	column total_cost
+		dataType: double
+		formatString: "#,0.00"
+		lineageTag: 9c1f0a11-0002-4a00-9000-000000000205
+		summarizeBy: none
+		sourceColumn: total_cost
+
+		annotation SummarizationSetBy = Automatic
+
+	column return_on_spend_pct
+		dataType: double
+		formatString: "0.0"
+		lineageTag: 9c1f0a11-0002-4a00-9000-000000000206
+		summarizeBy: none
+		sourceColumn: return_on_spend_pct
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Sensitivity = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(File.Contents(RepoPath & "\data\sensitivity_export.csv"), [Delimiter=",", Encoding=65001, QuoteStyle=QuoteStyle.Csv]),
+				    Headers = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
+				    Typed = Table.TransformColumnTypes(Headers, {{"success_rate", type number}, {"customers_contacted", Int64.Type}, {"pct_of_base", type number}, {"net_return_targeted", type number}, {"net_return_contact_everyone", type number}, {"total_cost", type number}, {"return_on_spend_pct", type number}})
+				in
+				    Typed
+
+	annotation PBI_ResultType = Table
