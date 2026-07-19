@@ -1,11 +1,9 @@
 # Stage Four: The Economics of Contacting Customers
 
 **Notebook:** `04_economics.ipynb`
-**Supporting file:** `sql/05_economics.sql`
+**Supporting files:** `sql/05_economics.sql`, `sql/06_sensitivity.sql`
 
 ---
-
-## Position within the project
 
 This is the last of four documents describing a project which predicts which customers of a telecommunications provider are likely to leave, and works out which of them are worth the cost of keeping. The project and the source data are introduced in the Stage One document. The four write-ups form one continuous account, read in order and without reference to the underlying code.
 
@@ -55,10 +53,10 @@ Two figures in the calculation are not in the dataset and cannot be worked out f
 
 It is made up of two parts:
 
-| Part | Amount | Basis |
-|---|---|---|
-| Contact and administration | R20 | An automated message rather than a phone call from a member of staff |
-| Retention offer | R40 | A cut of R20 per month, held for two months |
+| Part                       | Amount | Basis                                                                |
+| -------------------------- | ------ | -------------------------------------------------------------------- |
+| Contact and administration | R20    | An automated message rather than a phone call from a member of staff |
+| Retention offer            | R40    | A cut of R20 per month, held for two months                          |
 
 The figure is shown in parts so that each part can be challenged on its own.
 
@@ -68,7 +66,7 @@ The figure is shown in parts so that each part can be challenged on its own.
 
 Of the customers who would otherwise leave, about three in ten stay when they are made an offer.
 
-**This is the least certain figure in the project**, and it should be treated that way. It is the first figure a working business would replace with results from its own campaigns. The findings below rise and fall with it. If the true rate were 15 percent, the returns reported here would halve.
+**This is the least certain figure in the project**, and it should be treated that way. It is the first figure a working business would replace with results from its own campaigns. The findings below rise and fall with it, and by more than the size of the change: section 6 tests the figure across a range and shows that halving it does not halve the return, it removes almost all of it.
 
 ### Assumption 3: no adjustment for the timing of payments
 
@@ -86,12 +84,12 @@ At first this looked like a mistake in the calculation. Checking it showed that 
 
 To confirm it, the most that could be recovered was worked out for every customer:
 
-| | Amount |
-|---|---|
-| Least recoverable from a single customer | R0.56 |
-| Typical customer | R39.55 |
-| Top 10 percent of customers | above R82.28 |
-| Top 1 percent of customers | above R109.24 |
+|                                                              | Amount            |
+| ------------------------------------------------------------ | ----------------- |
+| Least recoverable from a single customer                     | R0.56             |
+| Typical customer                                             | R39.55            |
+| Top 10 percent of customers                                  | above R82.28      |
+| Top 1 percent of customers                                   | above R109.24     |
 | **Most recoverable from any customer in the business** | **R163.09** |
 
 **The most valuable customer in the business is worth spending at most R163 to keep. The typical customer is worth R40.**
@@ -108,10 +106,10 @@ The cost assumption was then changed to R60 because of that conclusion. **The ch
 
 Applying the rule at R60 per contact splits the customer base as follows:
 
-| Decision | Customers | Value recovered | Cost | Net |
-|---|---|---|---|---|
-| **Contact** | 2,218 | R172,742 | R133,080 | **+R39,662** |
-| Do not contact | 4,825 | R105,819 | R289,500 | −R183,681 |
+| Decision          | Customers | Value recovered | Cost     | Net                |
+| ----------------- | --------- | --------------- | -------- | ------------------ |
+| **Contact** | 2,218     | R172,742        | R133,080 | **+R39,662** |
+| Do not contact    | 4,825     | R105,819        | R289,500 | −R183,681         |
 
 The second row is the important one. Those 4,825 customers would cost R289,500 to contact and would bring back R105,819. **Chasing them destroys R183,681.**
 
@@ -133,18 +131,18 @@ The gap between those two outcomes is about **R184,000**.
 
 Stage Two split the customer base into ten equally sized groups ranked by value. Applying the decision rule inside each group gives the following:
 
-| Value group | Customers | Worth contacting | Net if targeted | Net if all contacted |
-|---|---|---|---|---|
-| 1 (most valuable) | 705 | 83 | +R1,600 | −R17,761 |
-| 2 | 705 | 349 | +R10,262 | −R2,598 |
-| 3 | 705 | 138 | +R2,642 | −R17,693 |
-| **4** | 704 | **589** | **+R13,506** | +R11,196 |
-| **5** | 704 | **532** | **+R8,206** | +R5,216 |
-| 6 | 704 | 363 | +R2,974 | −R9,179 |
-| 7 | 704 | 164 | +R472 | −R19,151 |
-| 8 | 704 | **0** | R0 | −R28,863 |
-| 9 | 704 | **0** | R0 | −R30,434 |
-| 10 (least valuable) | 704 | **0** | R0 | −R34,750 |
+| Value group         | Customers | Worth contacting | Net if targeted    | Net if all contacted |
+| ------------------- | --------- | ---------------- | ------------------ | -------------------- |
+| 1 (most valuable)   | 705       | 83               | +R1,600            | −R17,761            |
+| 2                   | 705       | 349              | +R10,262           | −R2,598             |
+| 3                   | 705       | 138              | +R2,642            | −R17,693            |
+| **4**         | 704       | **589**    | **+R13,506** | +R11,196             |
+| **5**         | 704       | **532**    | **+R8,206**  | +R5,216              |
+| 6                   | 704       | 363              | +R2,974            | −R9,179             |
+| 7                   | 704       | 164              | +R472              | −R19,151            |
+| 8                   | 704       | **0**      | R0                 | −R28,863            |
+| 9                   | 704       | **0**      | R0                 | −R30,434            |
+| 10 (least valuable) | 704       | **0**      | R0                 | −R34,750            |
 
 Three findings come out of this.
 
@@ -176,16 +174,64 @@ High value with low risk leaves little to recover. Contacting the whole group wo
 
 ---
 
+## 6. Testing the assumption that matters most
+
+Everything in section 4 and section 5 rests on the assumption that three customers in ten stay when they are made an offer. That figure is not in the dataset, and it is the least certain input in the project. Rather than leave it as a caveat at the end of the document, it was tested directly.
+
+The test holds the model, the probabilities, the customer values and the R60 cost fixed, and moves the success rate alone across a range from 10 percent to 50 percent. The decision rule is then applied again at each rate, from the beginning, as though that rate had been the assumption all along. The work sits in `sql/06_sensitivity.sql`.
+
+| Success rate      | Worth contacting | Share of base | Net if targeted    | Net if all contacted | Return on spend |
+| ----------------- | ---------------- | ------------- | ------------------ | -------------------- | --------------- |
+| 10%               | 0                | 0.0%          | none               | −R329,726           | none            |
+| 15%               | 35               | 0.5%          | +R280              | −R283,299           | 13%             |
+| 20%               | 361              | 5.1%          | +R2,820            | −R236,872           | 13%             |
+| 25%               | 1,333            | 18.9%         | +R15,395           | −R190,445           | 19%             |
+| **30% (assumed)** | **2,218**  | **31.5%** | **+R39,662** | **−R144,018**  | **30%**   |
+| 35%               | 2,592            | 36.8%         | +R70,514           | −R97,591            | 45%             |
+| 40%               | 2,857            | 40.6%         | +R104,010          | −R51,164            | 61%             |
+| 50%               | 3,315            | 47.1%         | +R176,164          | +R41,690             | 89%             |
+
+The row at 30 percent repeats the figures reported in section 4 exactly. That is the check that the two pieces of work agree with each other.
+
+Three findings come out of the test.
+
+### Finding 1: the programme is fragile below 25 percent
+
+At 20 percent, only 361 customers clear the bar and the whole programme returns R2,820. At 15 percent it comes down to 35 customers and R280, which is too small to be worth the effort of running. At 10 percent nobody qualifies at all and the programme cannot be run.
+
+**What this means commercially.** The break point is not far below the assumed figure. A business whose retention offers succeed a fifth of the time has no programme here worth building.
+
+### Finding 2: the assumption does real work
+
+Moving from 30 percent to 25 percent, a change of five percentage points, cuts the return from R39,662 to R15,395. That is a fall of 61 percent from a small move in a single figure that nobody has measured.
+
+**What this means commercially.** The figure has to be replaced with the business's own campaign results before any budget is committed. It cannot stay an assumption.
+
+### Finding 3: the conclusion survives regardless
+
+At every rate tested, targeting beats contacting everyone. Contacting everyone loses money at seven of the eight rates. It finally turns positive at 50 percent, where it returns R41,690, and even there targeting returns R176,164, which is more than four times as much.
+
+> **Finding.** The success rate changes the size of the prize. It never changes the decision to target rather than contact everyone. The main conclusion of this stage holds across the full range tested, and only the amount of money attached to it moves.
+
+### A note on the size of the return
+
+The programme returns R39,662 on a customer base worth R2.73 million. That is a small return, and it should be described as one.
+
+The honest reading is not that retention is a large opportunity in this business. It is that the opportunity is narrow, and it only survives if the approach is cheap and tightly targeted. The R340 finding in section 3 pointed the same way. Both results say the same thing from different directions: the customer values here are low enough that retention spend has very little room in which to earn anything back.
+
+---
+
 ## Summary of findings
 
-| Work undertaken | Outcome |
-|---|---|
-| Model probabilities combined with customer value | 7,043 customers each carrying both a risk and a worth |
-| Decision rule applied at R340 per contact | No customer was worth contacting, showing that expensive staffed retention cannot pay for itself at these values |
-| Most recoverable value worked out per customer | R163 at the very top, R40 for the typical customer |
-| Cost assumption changed to R60 because of that finding | 2,218 customers found to be worth contacting |
-| Targeted approach compared against contacting everyone | A loss of R144,018 turned into a return of R39,662 |
-| Decision spread across the ten value groups | 55% of the return sits in groups 4 and 5; groups 8 to 10 are left out entirely |
+| Work undertaken                                        | Outcome                                                                                                          |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| Model probabilities combined with customer value       | 7,043 customers each carrying both a risk and a worth                                                            |
+| Decision rule applied at R340 per contact              | No customer was worth contacting, showing that expensive staffed retention cannot pay for itself at these values |
+| Most recoverable value worked out per customer         | R163 at the very top, R40 for the typical customer                                                               |
+| Cost assumption changed to R60 because of that finding | 2,218 customers found to be worth contacting                                                                     |
+| Targeted approach compared against contacting everyone | A loss of R144,018 turned into a return of R39,662                                                               |
+| Decision spread across the ten value groups            | 55% of the return sits in groups 4 and 5; groups 8 to 10 are left out entirely                                   |
+| Success rate tested from 10% to 50%                    | The programme fails below 25%, but targeting beats contacting everyone at every rate tested                       |
 
 ---
 
@@ -195,7 +241,7 @@ Four qualifications apply to the figures above, and each is stated rather than l
 
 **1. The two main assumptions are judgements, not measurements.** Neither the cost of contact nor the success rate appears in the dataset. Both are written down in the SQL file. A working business would replace both with figures from its own campaign records, and the results would move to match.
 
-**2. The results move in step with the success rate.** The 30 percent assumption is the least certain input in the project. If the true rate were 15 percent, every return reported here would roughly halve, and far fewer customers would be worth contacting. This is the first figure that should be tested against real campaign data.
+**2. The results move sharply with the success rate.** The 30 percent assumption is the least certain input in the project. Section 6 tests it across a range from 10 percent to 50 percent. The returns move by far more than the assumption does, and the programme stops being worth running below about 25 percent. What the test also shows is that the decision to target rather than contact everyone holds at every rate. This is still the first figure that should be replaced with real campaign data.
 
 **3. The probabilities cover customers the model learned from.** Stage Three held back a quarter of customers for testing, and all the performance figures quoted there come from that held-back group. This stage needs a probability for all 7,043 customers in order to add up value across the whole customer base. Most of those customers were used in training, so their probabilities are slightly flattering. This does not change the shape of the decision or the comparison between targeting and not targeting, but the exact returns should be read as a guide rather than as precise figures.
 
@@ -205,9 +251,8 @@ Four qualifications apply to the figures above, and each is stated rather than l
 
 ## Outstanding work
 
-Two items remain in this stage:
+One item remains in this stage:
 
-- **A sensitivity test on the retention success rate**, showing how far that assumption can move before the programme stops being worth running.
 - **An export of the scored and classified customer base**, to feed the reporting layer.
 
 ---

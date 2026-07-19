@@ -5,8 +5,6 @@
 
 ---
 
-## Position within the project
-
 This is the second of four documents describing a project which predicts which customers of a telecommunications provider are likely to leave, the industry term is **churn**, and works out which of them are worth the cost of keeping. The project and the source data are introduced in full in the Stage One document. The four write-ups form one continuous account, read in order and without reference to the underlying code.
 
 Stage One examined the source data supplied by IBM, 7,043 customers of a telecommunications provider in California, with 33 items of information recorded for each. It reached three conclusions which shape this stage:
@@ -285,11 +283,11 @@ Knowing the value of each group is not enough on its own. What matters is how mu
 
 Multiplying each group's total value by its departure rate gives exactly that:
 
-| Group                                 | Share of customers | Value actually at risk |
-| ------------------------------------- | ------------------ | ---------------------- |
-| Groups 1 to 3 (most valuable)         | 30%                | R154k                  |
+| Group                                | Share of customers | Value actually at risk |
+| ------------------------------------ | ------------------ | ---------------------- |
+| Groups 1 to 3 (most valuable)        | 30%                | R154k                  |
 | **Groups 4 to 6 (in between)** | **30%**      | **R316k**        |
-| Groups 7 to 10 (least valuable)       | 40%                | R109k                  |
+| Groups 7 to 10 (least valuable)      | 40%                | R109k                  |
 
 **Groups 4 to 6 hold 30 percent of customers but 54 percent of all value at risk.**
 
@@ -303,15 +301,15 @@ The opportunity sits in the middle of the range, where real value and real risk 
 
 ## Summary of findings
 
-| Work undertaken                                                       | Outcome                                                                |
-| --------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| Four linked tables designed, with rules enforced by the database      | Postal code checked as a sound identifier before the design was accepted |
-| All 7,043 customers loaded                                            | Eleven unbilled new customers corrected and kept rather than deleted   |
-| Five checks run against figures established earlier                   | All five matched, including a full rejoin returning every customer     |
-| Seven measures worked out in SQL                                      | Departures found to sit in the first year, at 47.4%                    |
-| Recording issue found at Stage One dealt with openly                  | Two groups seven times apart found hidden inside a single category     |
-| Customer value worked out on three stated assumptions                 | The customers most at risk found to be the least valuable              |
-| Customers split into ten value groups                                 | 54% of value at risk found in groups 4 to 6                            |
+| Work undertaken                                                  | Outcome                                                                  |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Four linked tables designed, with rules enforced by the database | Postal code checked as a sound identifier before the design was accepted |
+| All 7,043 customers loaded                                       | Eleven unbilled new customers corrected and kept rather than deleted     |
+| Five checks run against figures established earlier              | All five matched, including a full rejoin returning every customer       |
+| Seven measures worked out in SQL                                 | Departures found to sit in the first year, at 47.4%                      |
+| Recording issue found at Stage One dealt with openly             | Two groups seven times apart found hidden inside a single category       |
+| Customer value worked out on three stated assumptions            | The customers most at risk found to be the least valuable                |
+| Customers split into ten value groups                            | 54% of value at risk found in groups 4 to 6                              |
 
 **Next stage:** build, test and select the model.
 

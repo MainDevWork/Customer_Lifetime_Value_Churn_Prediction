@@ -4,8 +4,6 @@
 
 ---
 
-## Position within the project
-
 This is the third of four documents describing a project which predicts which customers of a telecommunications provider are likely to leave, and works out which of them are worth the cost of keeping. The project and the source data are introduced in the Stage One document. The four write-ups form one continuous account, read in order and without reference to the underlying code.
 
 Stage Two produced a structured database covering all 7,043 customers. For each customer it holds seven worked-out measures: how long they have been with the business, how many extra services they hold, how easily they can end their contract, and others, together with a value for that customer. It also produced the finding the project rests on: the customers most likely to leave are the least valuable the business has.
@@ -146,12 +144,12 @@ A positive number pushes toward leaving. A negative number pushes toward staying
 
 ### Results that matched the Stage Two findings
 
-| Measure                  | Value            | What it says                                            |
-| ------------------------ | ---------------- | -------------------------------------------------------- |
+| Measure                  | Value            | What it says                                                 |
+| ------------------------ | ---------------- | ------------------------------------------------------------ |
 | Monthly charge           | **+1.84**  | A higher monthly charge is the strongest push toward leaving |
-| Contract risk            | +0.73            | Month-to-month customers leave more often                |
-| Tenure                   | **−1.22** | Longer-standing customers leave less often               |
-| Additional services held | −0.82           | Each extra service makes leaving less likely             |
+| Contract risk            | +0.73            | Month-to-month customers leave more often                    |
+| Tenure                   | **−1.22** | Longer-standing customers leave less often                   |
+| Additional services held | −0.82           | Each extra service makes leaving less likely                 |
 
 Each of these matches a finding already produced on its own at Stage Two, using completely separate methods. That agreement is itself a check on the work.
 
@@ -278,16 +276,16 @@ One wider point is worth making. **The real gains in this project came from unde
 
 ## Summary of findings
 
-| Work undertaken                                                    | Outcome                                                                |
-| ------------------------------------------------------------------ | ---------------------------------------------------------------------- |
-| Nine measures chosen, all value information deliberately left out  | Risk and worth kept as two separate questions                          |
-| Data split into training and test groups, proportions kept         | Both groups at 26.5% departed                                          |
-| Logistic regression trained with the imbalance corrected           | Figure of 0.840, with 79.2% of departures found                        |
-| The model's reasoning examined                                     | Two results did not match and were investigated                        |
-| Repeated measure removed                                           | Performance unchanged; a distorted result corrected itself             |
-| Fibre result investigated rather than accepted                     | Found to be correct once read properly; price identified as the cause  |
-| Gradient boosting built and compared                               | First comparison found to be unfair, and corrected                     |
-| Final comparison done on equal terms                               | 0.838 against 0.833, so the extra complexity brings no benefit         |
+| Work undertaken                                                   | Outcome                                                               |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Nine measures chosen, all value information deliberately left out | Risk and worth kept as two separate questions                         |
+| Data split into training and test groups, proportions kept        | Both groups at 26.5% departed                                         |
+| Logistic regression trained with the imbalance corrected          | Figure of 0.840, with 79.2% of departures found                       |
+| The model's reasoning examined                                    | Two results did not match and were investigated                       |
+| Repeated measure removed                                          | Performance unchanged; a distorted result corrected itself            |
+| Fibre result investigated rather than accepted                    | Found to be correct once read properly; price identified as the cause |
+| Gradient boosting built and compared                              | First comparison found to be unfair, and corrected                    |
+| Final comparison done on equal terms                              | 0.838 against 0.833, so the extra complexity brings no benefit        |
 
 **Model selected:** the logistic regression, because its decisions can be explained, a choice which on this dataset costs nothing in performance.
 
