@@ -1,0 +1,42 @@
+{
+  "name": "Churn Economics Dark",
+  "dataColors": ["#3987e5", "#e66767", "#c3c2b7", "#898781", "#5ba3f5", "#f08a8a", "#7a7a72", "#4a4a46"],
+  "background": "#1a1a19",
+  "foreground": "#ffffff",
+  "tableAccent": "#3987e5",
+  "good": "#3987e5",
+  "neutral": "#c3c2b7",
+  "bad": "#e66767",
+  "maximum": "#3987e5",
+  "minimum": "#e66767",
+  "textClasses": {
+    "callout": { "fontSize": 28, "fontFace": "Segoe UI", "color": "#ffffff" },
+    "title": { "fontSize": 12, "fontFace": "Segoe UI Semibold", "color": "#ffffff" },
+    "header": { "fontSize": 11, "fontFace": "Segoe UI", "color": "#c3c2b7" },
+    "label": { "fontSize": 9, "fontFace": "Segoe UI", "color": "#898781" }
+  },
+  "visualStyles": {
+    "*": {
+      "*": {
+        "background": [{ "color": { "solid": { "color": "#1a1a19" } }, "transparency": 0 }],
+        "border": [{ "show": true, "color": { "solid": { "color": "#2c2c2a" } }, "radius": 4 }],
+        "title": [{ "show": true, "fontColor": { "solid": { "color": "#ffffff" } }, "background": { "solid": { "color": "#1a1a19" } }, "fontSize": 12, "fontFamily": "Segoe UI Semibold" }],
+        "categoryAxis": [{ "labelColor": { "solid": { "color": "#898781" } }, "titleColor": { "solid": { "color": "#898781" } }, "gridlineColor": { "solid": { "color": "#2c2c2a" } }, "fontSize": 9 }],
+        "valueAxis": [{ "labelColor": { "solid": { "color": "#898781" } }, "titleColor": { "solid": { "color": "#898781" } }, "gridlineColor": { "solid": { "color": "#2c2c2a" } }, "fontSize": 9 }],
+        "legend": [{ "labelColor": { "solid": { "color": "#c3c2b7" } }, "fontSize": 9 }],
+        "labels": [{ "color": { "solid": { "color": "#c3c2b7" } }, "fontSize": 9 }],
+        "outspacePane": [{ "backgroundColor": { "solid": { "color": "#1a1a19" } }, "foregroundColor": { "solid": { "color": "#ffffff" } }, "borderColor": { "solid": { "color": "#2c2c2a" } } }],
+        "filterCard": [
+          { "$id": "Applied", "backgroundColor": { "solid": { "color": "#1a1a19" } }, "foregroundColor": { "solid": { "color": "#c3c2b7" } }, "borderColor": { "solid": { "color": "#2c2c2a" } } },
+          { "$id": "Available", "backgroundColor": { "solid": { "color": "#1a1a19" } }, "foregroundColor": { "solid": { "color": "#c3c2b7" } }, "borderColor": { "solid": { "color": "#2c2c2a" } } }
+        ]
+      }
+    },
+    "page": {
+      "*": {
+        "background": [{ "color": { "solid": { "color": "#0d0d0d" } }, "transparency": 0 }],
+        "outspace": [{ "color": { "solid": { "color": "#0d0d0d" } }, "transparency": 0 }]
+      }
+    }
+  }
+}
